@@ -13,9 +13,14 @@
     "nuxt": "^3.7.0"
   },
   "dependencies": {
+    "@ckpack/vue-color": "^1.5.0",
+    "@pinia/nuxt": "^0.4.11",
     "peerjs": "^1.4.7",
+    "pinia": "^2.1.6",
     "pixi-viewport": "^5.0.2",
-    "pixi.js": "^7.2.4",
-    "two.js": "^0.8.11"
+    "pixi.js": "^7.2.4"
+  },
+  "overrides": {
+    "vue": "latest"
   }
 }

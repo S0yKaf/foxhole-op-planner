@@ -13,10 +13,11 @@ export class Connection extends EventEmitter {
         this.host = host
         this.id = id
         this.connections = []
-        this.connection
+    }
 
+    connect() {
 
-        this.peer = new Peer(host || null, this.appConfig.peerjs_config);
+        this.peer = new Peer(this.host || null, this.appConfig.peerjs_config);
 
         self = this
         this.peer.on('open', (id) => {
@@ -40,26 +41,39 @@ export class Connection extends EventEmitter {
 
         this.peer.on("connection", function(conn) {
             conn.on("data", function(data) {
-                self.handle_data(data);
+                self.handle_data(data, conn);
             })
 
             self.connections.push(conn);
 
             conn.on('open', () => {
                 conn.send('hello!');
+                self.emit("connection", conn)
             });
 
         })
 
     }
 
-    handle_data(data) {
-        console.log(data)
+    handle_data(data, conn = null) {
         if (data.click) {
-           this.emit("click", data.click, data.erase)
+           this.emit("click", data)
         }
         if (data.move) {
-            this.emit("move", data.move)
+            this.emit("move", data)
+        }
+
+        if (data.state) {
+            this.emit("state", data.state)
+        }
+
+        if (this.host) {
+            this.connections.forEach((c) => {
+                if (c == conn) {
+                    return;
+                }
+                c.send(data)
+            })
         }
     }
 
@@ -71,9 +85,8 @@ export class Connection extends EventEmitter {
     }
 
     send_data(data) {
-        this.connections.forEach( (c) => {
-            c.send(data);
+        this.connections.forEach((c) => {
+            c.send(data)
         })
-
     }
 }

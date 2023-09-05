@@ -22,7 +22,7 @@ export class Brush {
         this.overlay
             .clear()
             .beginFill(c)
-            .drawCircle(pos.x, pos.y, this.size)
+            .drawCircle(pos.x, pos.y, Math.floor(this.size))
     }
 
 
@@ -37,7 +37,7 @@ export class Brush {
         return b
             .clear()
             .beginFill(this.color)
-            .drawCircle(to.x, to.y, this.size)
+            .drawCircle(to.x, to.y, Math.floor(this.size))
     }
 
     get_line(from, to) {
@@ -50,7 +50,7 @@ export class Brush {
 
         return l
         .clear()
-        .lineStyle({width:this.size * 2, color:this.color})
+        .lineStyle({width:Math.floor(this.size * 2), color:this.color})
         .moveTo(from.x, from.y)
         .lineTo(to.x, to.y)
     }

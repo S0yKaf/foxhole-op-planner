@@ -1,6 +1,5 @@
 <template>
- <div class="header" id="myHeader">
-  <!-- <h2>My Header</h2> -->
+<div id="canvas">
 </div>
 </template>
 
@@ -8,10 +7,11 @@
 import * as PIXI from 'pixi.js';
 import { Viewport } from 'pixi-viewport'
 import { autoDetectRenderer } from 'pixi.js';
+import { ref } from 'vue';
+import { Twitter } from '@ckpack/vue-color';
 
 import { Peer } from "peerjs";
-
-
+import appConfig from '~/app.config';
 
 const queryString = window.location.search;
 const urlParams = new URLSearchParams(queryString);
@@ -19,13 +19,16 @@ const urlParams = new URLSearchParams(queryString);
 var host = urlParams.get('host')
 var connect = urlParams.get('connect')
 
-console.log(host)
-console.log(connect)
 
-const connection = new Connection(host, connect);
-var brush = new Brush();
-connection.on("click", click_draw)
-connection.on("move", move_draw)
+connection.host = host
+connection.id = connect
+
+connection.connect()
+
+connection.on("click", network_click)
+connection.on("move", network_draw)
+connection.on("connection", on_connect)
+connection.on('state', on_state)
 
 
 const app = new PIXI.Application({
@@ -63,7 +66,6 @@ texture.baseTexture.scaleMode = PIXI.SCALE_MODES.LINEAR;
 
 const renderer = autoDetectRenderer();
 
-document.body.appendChild(app.view);
 const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
 
 var map = new PIXI.Sprite(texture);
@@ -94,7 +96,21 @@ window.addEventListener('resize', resize);
 
 
 var last_pos = null;
+var remote_last_pos = null;
 
+
+function on_connect(conn) {
+    var url = app.renderer.extract.canvas(renderTexture).toDataURL()
+    conn.send({state: url})
+
+}
+
+function on_state(state) {
+    var sprite = PIXI.Sprite.from(state)
+    sprite.texture.baseTexture.on("loaded",() => {
+        app.renderer.render(sprite, { renderTexture, clear:false, skipUpdateTransform: false })
+    })
+}
 
 function overlay(e) {
     var pos = viewport.toWorld(e.globalX,e.globalY);
@@ -111,13 +127,12 @@ function onClick(e) {
     last_pos.x += 11264 * 0.5;
     last_pos.y += 12432 * 0.5;
 
-    connection.send_data({click: last_pos, erase: e.shiftKey})
+    connection.send_data({click: last_pos, erase: e.shiftKey, color:brush.color.toHex(), size: brush.size})
 
     click_draw(last_pos, e.shiftKey);
 }
 
 function click_draw(last_pos, erase=false) {
-
     brush.erase = erase
     var b = brush.get(last_pos)
     viewport.on('pointermove', onDraw)
@@ -132,8 +147,36 @@ function onDraw(e) {
     }
 
     var pos = viewport.toWorld(e.globalX,e.globalY);
-    connection.send_data({move: pos})
+    connection.send_data({move: pos, color:brush.color.toHex(), size: brush.size})
     move_draw(pos)
+
+}
+
+function network_click(data) {
+    remote_last_pos = data.click
+    remote_brush.erase = data.erase
+    remote_brush.color = data.color
+    remote_brush.size = data.size
+    var b = remote_brush.get(data.click)
+
+    app.renderer.render(b, { renderTexture, clear:false, skipUpdateTransform: false })
+
+}
+
+function network_draw(data) {
+    console.log(data)
+    var pos = data.move
+
+    pos.x += 11264 * 0.5;
+    pos.y += 12432 * 0.5;
+
+    var b = remote_brush.get(pos)
+    var l = remote_brush.get_line(remote_last_pos,pos)
+
+    remote_last_pos = pos;
+
+    app.renderer.render(l, { renderTexture, clear:false, skipUpdateTransform: false })
+    app.renderer.render(b, { renderTexture, clear:false, skipUpdateTransform: false })
 
 }
 
@@ -159,45 +202,10 @@ function resize() {
 }
 
 resize();
+onMounted(() => { document.getElementById("canvas").appendChild(app.view) })
 
 </script>
 
 <style>
 
-body {
-  margin:0;
-  padding:0;
-  overflow:hidden;
-}
-
-canvas {
-  display:block;
-  width: 100%;
-  height: 100%;
-}
-
-
- /* Style the header */
-.header {
-  padding: 10px 16px;
-  background: #000000FF;
-  color: #f1f1f1;
-}
-
-/* Page content */
-.content {
-  padding: 16px;
-}
-
-/* The sticky class is added to the header with JS when it reaches its scroll position */
-.sticky {
-  position: fixed;
-  top: 0;
-  width: 100%
-}
-
-/* Add some top padding to the page content to prevent sudden quick movement (as the header gets a new position at the top of the page (position:fixed and top:0) */
-.sticky + .content {
-  padding-top: 102px;
-}
 </style>

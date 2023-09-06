@@ -18,17 +18,50 @@ const urlParams = new URLSearchParams(queryString);
 var host = urlParams.get('host')
 var connect = urlParams.get('connect')
 
+var connection = null
 
-connection.host = host
-connection.id = connect
+if (host) {
+    connection = new Host(host)
+}
 
-// connection.connect()
+if (connect) {
+    connection = new Client(connect)
+}
 
-// connection.on("click", network_click)
-// connection.on("move", network_draw)
-// connection.on("connection", on_connect)
-// connection.on('state', on_state)
+if (connection) {
+    canvas.viewport.on("pointermove", move, canvas)
+    canvas.viewport.on("pointerdown", onClick, canvas)
+    canvas.viewport.on("pointerup", onUp, canvas)
+}
 
+
+
+function move(e) {
+    var last_pos = this.viewport.toWorld(e.globalX,e.globalY);
+    last_pos.x += 11264 * 0.5;
+    last_pos.y += 12432 * 0.5;
+
+    if (brush.drawing){
+        connection.send_data({command: 'draw', args: [last_pos, e.shiftKey]})
+    }
+}
+
+function onUp(e) {
+    connection.send_data({command: 'up', args: []})
+}
+
+function onClick(e) {
+    if (!e.originalEvent.button == 0) {
+        return;
+    }
+    var last_pos = this.viewport.toWorld(e.globalX,e.globalY);
+    last_pos.x += 11264 * 0.5;
+    last_pos.y += 12432 * 0.5;
+
+    connection.send_data({command: 'update_brush', args: [brush.size, brush.color.toHex()]})
+    connection.send_data({command: 'draw', args: [last_pos, e.shiftKey]})
+
+}
 
 function on_connect(conn) {
     var url = app.renderer.extract.canvas(renderTexture).toDataURL()

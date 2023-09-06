@@ -2,13 +2,17 @@ import { Peer } from "peerjs";
 import { EventEmitter, ValidEventTypes } from "eventemitter3";
 
 
-export class Host {
+export class Host extends EventEmitter {
+
+    appConfig = useAppConfig()
 
     peer = null
     room_name = null
     connections = []
+    brushes = {}
 
     constructor(name=null) {
+        super()
         this.peer = new Peer(name || null, this.appConfig.peerjs_config);
 
         self = this
@@ -26,38 +30,60 @@ export class Host {
                 self.handle_data(data, conn);
             })
 
+            console.log("connected")
             self.connections.push(conn);
 
             conn.on('open', () => {
-                self.emit("connection", conn)
+                self.send_initial_state(conn)
             });
 
         })
     }
 
     handle_data(data, conn = null) {
-        if (data.click) {
-           this.emit("click", data)
+        if (!this.brushes[data.peer]) {
+            this.brushes[data.peer] = new Brush()
         }
-        if (data.move) {
-            this.emit("move", data)
+        switch (data.command) {
+            case "draw":
+                this.brushes[data.peer].draw(data.args[0], data.args[1])
+                break;
+
+            case "up":
+                this.brushes[data.peer].up()
+                break;
+
+            case "update_brush":
+                this.brushes[data.peer].size = data.args[0]
+                this.brushes[data.peer].color = data.args[1]
+                break;
+
+            default:
+                break;
         }
 
-        if (data.state) {
-            this.emit("state", data.state)
-        }
+        this.propagate_data(data)
+    }
 
-        if (this.host) {
-            this.connections.forEach((c) => {
-                if (c == conn) {
-                    return;
-                }
-                c.send(data)
-            })
+    send_initial_state(conn) {
+        var url = canvas.app.renderer.extract.canvas(canvas.renderTexture).toDataURL()
+        conn.send({command: 'init', args: [url]})
+    }
+
+    propagate_data(data) {
+        if (!data.peer) {
+            return
         }
+        this.connections.forEach((c) => {
+            if (c.peer == data.peer) {
+                return;
+            }
+            c.send(data)
+        })
     }
 
     send_data(data) {
+        data['peer'] = this.room_name
         this.connections.forEach((c) => {
             c.send(data)
         })

@@ -106,10 +106,16 @@ export class Canvas {
         // connection.send_data({click: last_pos, erase: e.shiftKey, color:brush.color.toHex(), size: brush.size})
     }
 
+    init_from_host(state) {
+        var renderTexture = this.renderTexture
+        var sprite = PIXI.Sprite.from(state)
+        sprite.texture.baseTexture.on("loaded",() => {
+            this.app.renderer.render(sprite, { renderTexture, clear:false, skipUpdateTransform: false })
+        })
+    }
 
 
     resize(width, height) {
-        console.log("CALLED")
         // Resize the renderer
         this.app.renderer.resize(width, height);
         this.viewport.resize(width, height);

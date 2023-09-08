@@ -2,6 +2,7 @@ import appConfig from '~/app.config';
 import * as PIXI from 'pixi.js';
 import { Viewport } from 'pixi-viewport'
 import { autoDetectRenderer } from 'pixi.js';
+import { getMapItemPosition, regions } from './MapRegions';
 
 
 export class Canvas {
@@ -69,6 +70,65 @@ export class Canvas {
         this.viewport.on("pointermove", this.move, this)
         this.viewport.on("pointerdown", this.onClick, this)
         this.viewport.on("pointerup", this.onUp, this)
+
+        regions.forEach((r) => {
+            var text = new PIXI.Text(r.name, {
+                fontFamily: 'Arial',
+                fontSize: 128,
+                fill: 0x000000,
+                align: 'center',
+            })
+
+            WarpApi.statics(r.id)
+            .then((items) => {
+                items.mapTextItems.forEach((item) => {
+                    var pos = getMapItemPosition(r.id, item.x, item.y)
+                    var text = new PIXI.Text(item.text, {
+                        fontFamily: 'Arial',
+                        fontSize: 12,
+                        fill: 0x000000,
+                        align: 'center',
+                    })
+                    this.viewport.addChild(text)
+                    text.position.set(pos[0], pos[1])
+                    text.anchor.set(0.5)
+                })
+
+            })
+
+            const warden_color = 0x245682;
+            const colonial_color = 0x516C4B;
+            WarpApi.dynamic(r.id)
+            .then((items) => {
+                items.mapItems.forEach((item) => {
+                    var pos = getMapItemPosition(r.id, item.x, item.y)
+                    var icon = new PIXI.Sprite(WarpApi.icons[item.iconType])
+
+                    switch (item.teamId) {
+                        case "WARDENS":
+                            icon.tint = (warden_color)
+                            break;
+
+                        case "COLONIALS":
+                            icon.tint = (colonial_color)
+                        break;
+
+                        default:
+                            break;
+                    }
+
+                    this.viewport.addChild(icon)
+                    icon.position.set(pos[0], pos[1])
+                    icon.anchor.set(0.5)
+                })
+
+            })
+
+            this.viewport.addChild(text)
+            text.position.set(r.center[0],r.center[1])
+            text.anchor.set(0.5)
+
+        })
     }
 
 
@@ -101,6 +161,7 @@ export class Canvas {
         last_pos.x += 11264 * 0.5;
         last_pos.y += 12432 * 0.5;
 
+        console.log(last_pos)
         brush.draw(last_pos, e.shiftKey)
 
         // connection.send_data({click: last_pos, erase: e.shiftKey, color:brush.color.toHex(), size: brush.size})

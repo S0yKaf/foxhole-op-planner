@@ -56,8 +56,7 @@ export class Client extends EventEmitter {
                 break;
 
             case "init":
-                var state = data.args[0]
-                canvas.init_from_host(state)
+                canvas.init_from_host(data.args[0])
                 break;
 
             default:

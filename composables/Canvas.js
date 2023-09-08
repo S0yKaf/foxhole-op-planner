@@ -111,9 +111,6 @@ export class Canvas {
 
                         case "COLONIALS":
                             icon.tint = (colonial_color)
-                        break;
-
-                        default:
                             break;
                     }
 

@@ -4,7 +4,7 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   ssr: false,
   app: {
-    baseURL: '/foxhole-op-planner/',
+    // baseURL: '/foxhole-op-planner/',
     buildAssetsDir: 'assets',
   }
 })

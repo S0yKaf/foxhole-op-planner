@@ -63,20 +63,6 @@ function onClick(e) {
 
 }
 
-function on_connect(conn) {
-    var url = app.renderer.extract.canvas(renderTexture).toDataURL()
-    conn.send({state: url})
-
-}
-
-function on_state(state) {
-    var sprite = PIXI.Sprite.from(state)
-    sprite.texture.baseTexture.on("loaded",() => {
-        app.renderer.render(sprite, { renderTexture, clear:false, skipUpdateTransform: false })
-    })
-}
-
-
 canvas.resize(window.innerWidth,window.innerHeight)
 
 onMounted(() => {

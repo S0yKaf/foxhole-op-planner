@@ -1,4 +1,4 @@
 export var brush = new Brush()
-export var connection = new Connection()
-export var remote_brush = new Brush()
 export var canvas = new Canvas()
+
+export const clamp = (num, min, max) => Math.min(Math.max(num, min), max);

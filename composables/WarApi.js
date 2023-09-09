@@ -6,6 +6,7 @@ class WarpApiSingleton {
     url = "https://war-service-live.foxholeservices.com/api/worldconquest"
 
     icons = {}
+    TOWNS = [8,27,29,28,35,45,56,57,58]
 
     constructor() {
 

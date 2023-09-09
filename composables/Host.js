@@ -15,26 +15,26 @@ export class Host extends EventEmitter {
         super()
         this.peer = new Peer(name || null, this.appConfig.peerjs_config);
 
-        self = this
+
         this.peer.on('open', (id) => {
             this.room_name = id
             console.log('My peer ID is: ' + id);
         });
 
-        this.peer.on("error", function(err) {
+        this.peer.on("error", (err) => {
             console.log(err)
         })
 
-        this.peer.on("connection", function(conn) {
-            conn.on("data", function(data) {
-                self.handle_data(data, conn);
+        this.peer.on("connection", (conn) => {
+            conn.on("data", (data) => {
+                this.handle_data(data, conn);
             })
 
             console.log("connected")
-            self.connections.push(conn);
+            this.connections.push(conn);
 
             conn.on('open', () => {
-                self.send_initial_state(conn)
+                this.send_initial_state(conn)
             });
 
         })

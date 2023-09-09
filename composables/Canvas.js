@@ -1,11 +1,18 @@
-import appConfig from '~/app.config';
 import * as PIXI from 'pixi.js';
 import { Viewport } from 'pixi-viewport'
 import { autoDetectRenderer } from 'pixi.js';
+
+import FontFaceObserver from 'fontfaceobserver';
+
 import { getMapItemPosition, regions } from './MapRegions';
+import appConfig from '~/app.config';
 
 
 export class Canvas {
+
+    hexNames = []
+    labels = []
+    icons = []
 
     app = new PIXI.Application({
         antialias: true,
@@ -42,10 +49,6 @@ export class Canvas {
         const texture = PIXI.Texture.from('foxhole_map.jpg');
         texture.baseTexture.scaleMode = PIXI.SCALE_MODES.LINEAR;
 
-        const renderer = autoDetectRenderer();
-
-        const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
-
         var map = new PIXI.Sprite(texture);
 
         map.anchor.set(0.5)
@@ -70,39 +73,26 @@ export class Canvas {
         this.viewport.on("pointermove", this.move, this)
         this.viewport.on("pointerdown", this.onClick, this)
         this.viewport.on("pointerup", this.onUp, this)
+        this.viewport.on("zoomed",this.onZoom, this)
 
-        regions.forEach((r) => {
-            var text = new PIXI.Text(r.name, {
-                fontFamily: 'Arial',
-                fontSize: 128,
-                fill: 0x000000,
-                align: 'center',
-            })
+        let font = new FontFaceObserver('Jost');
+        font.load().then(() => {
+                this.setup_warApi();
+        })
 
-            WarpApi.statics(r.id)
-            .then((items) => {
-                items.mapTextItems.forEach((item) => {
-                    var pos = getMapItemPosition(r.id, item.x, item.y)
-                    var text = new PIXI.Text(item.text, {
-                        fontFamily: 'Arial',
-                        fontSize: 12,
-                        fill: 0x000000,
-                        align: 'center',
-                    })
-                    this.viewport.addChild(text)
-                    text.position.set(pos[0], pos[1])
-                    text.anchor.set(0.5)
-                })
+    }
 
-            })
+    setup_warApi() {
+        const warden_color = 0x245682;
+        const colonial_color = 0x516C4B;
+        regions.forEach(async (r) => {
 
-            const warden_color = 0x245682;
-            const colonial_color = 0x516C4B;
-            WarpApi.dynamic(r.id)
-            .then((items) => {
-                items.mapItems.forEach((item) => {
+           await WarpApi.dynamic(r.id)
+            .then(async (items) => {
+                await items.mapItems.forEach((item) => {
                     var pos = getMapItemPosition(r.id, item.x, item.y)
                     var icon = new PIXI.Sprite(WarpApi.icons[item.iconType])
+                    icon.name = item.iconType
 
                     switch (item.teamId) {
                         case "WARDENS":
@@ -114,24 +104,94 @@ export class Canvas {
                             break;
                     }
 
-                    this.viewport.addChild(icon)
                     icon.position.set(pos[0], pos[1])
                     icon.anchor.set(0.5)
+                    this.icons.push(icon)
+                    this.viewport.addChild(icon)
                 })
 
             })
 
+           await WarpApi.statics(r.id)
+            .then(async (items) => {
+                await items.mapTextItems.forEach((item) => {
+                    var pos = getMapItemPosition(r.id, item.x, item.y)
+                    var text = new PIXI.Text(item.text, {
+                        fontFamily: 'Jost',
+                        fontSize: 128,
+                        fill: 0x140c1c,
+                        stroke: 0xdeeed6,
+                        strokeThickness: 8,
+                        align: 'center',
+                    })
+                    text.position.set(pos[0], pos[1])
+                    text.scale.set(0.2);
+                    text.anchor.set(0.5)
+                    this.labels.push(text)
+                    this.viewport.addChild(text)
+                })
+
+            })
+
+
+            var text = new PIXI.Text(r.name, {
+                fontFamily: 'Jost',
+                fontSize: 256,
+                fill: 0x140c1c,
+                stroke: 0xdeeed6,
+                strokeThickness: 16,
+                align: 'center',
+            })
+
+            this.hexNames.push(text)
             this.viewport.addChild(text)
             text.position.set(r.center[0],r.center[1])
             text.anchor.set(0.5)
-
         })
+
+
+
     }
 
 
     render(graphic) {
         var renderTexture = this.renderTexture
         this.app.renderer.render(graphic, { renderTexture, clear:false, skipUpdateTransform: false })
+    }
+
+    onZoom(e) {
+        var labelScale = 0.2
+        var regionScale = 1.0
+        var iconScale = 1.0
+        var zoom = this.viewport.scale.x
+        this.labels.forEach((label) => {
+            label.alpha = 1.0
+            label.scale.set(0.2)
+            if (zoom < 0.5)
+                label.alpha = 0.0
+            if (zoom > 0.5)
+                label.scale.set(clamp(label.scale.x / zoom,0.01,labelScale))
+        })
+
+        this.icons.forEach((icon) => {
+            icon.alpha = 1.0
+            icon.scale.set(1.0)
+            if (zoom < 0.5 && !WarpApi.TOWNS.includes(icon.name))
+                icon.alpha = 0.0
+
+            if (zoom < 0.5 && WarpApi.TOWNS.includes(icon.name))
+                icon.scale.set(clamp(1.0 / (zoom),2.0,8.0))
+
+            if (zoom > 0.5)
+                icon.scale.set(clamp(icon.scale.x / (zoom * 1.3),0.1,iconScale))
+
+        })
+
+        this.hexNames.forEach((hex) => {
+            hex.alpha = 1.0
+            if (zoom > 0.5)
+                hex.alpha = 0.0
+        })
     }
 
     move(e) {

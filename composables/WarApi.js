@@ -7,6 +7,7 @@ class WarpApiSingleton {
 
     icons = {}
     TOWNS = [8,27,29,28,45,56,57,58]
+    VORONOI = [8,45,56,57,58]
 
     constructor() {
 

@@ -21,7 +21,8 @@
     "peerjs": "^1.4.7",
     "pinia": "^2.1.6",
     "pixi-viewport": "^5.0.2",
-    "pixi.js": "^7.2.4"
+    "pixi.js": "^7.2.4",
+    "voronoi": "^1.0.0"
   },
   "overrides": {
     "vue": "latest"

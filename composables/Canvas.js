@@ -3,6 +3,7 @@ import { Viewport } from 'pixi-viewport'
 import { autoDetectRenderer } from 'pixi.js';
 
 import FontFaceObserver from 'fontfaceobserver';
+import Voronoi from 'voronoi';
 
 import { getMapItemPosition, regions } from './MapRegions';
 
@@ -16,6 +17,8 @@ export class Canvas {
     hexNames = []
     labels = []
     icons = {}
+    voronoi = []
+    town_icons = []
 
     app = new PIXI.Application({
         antialias: true,
@@ -79,64 +82,61 @@ export class Canvas {
         this.viewport.on("zoomed",this.onZoom, this)
 
         let font = new FontFaceObserver('Jost');
-        font.load(null,8000).then(() => {
-                this.setup_warApi();
+        font.load(null,8000).then(async () => {
+                await this.setup_warApi();
         })
 
     }
 
-    setup_warApi() {
-        regions.forEach(async (r) => {
-            this.icons[r.id] = []
-            await WarpApi.dynamic(r.id)
-            .then(async (items) => {
-                await items.mapItems.forEach((item) => {
-                    var pos = getMapItemPosition(r.id, item.x, item.y)
-                    var icon = new PIXI.Sprite(WarpApi.icons[item.iconType])
-                    icon.name = item.iconType
-                    icon._id = `${item.x}:${item.y}`
+    async setup_warApi() {
 
-                    switch (item.teamId) {
-                        case "WARDENS":
-                            icon.tint = (this.warden_color)
-                            break;
+        for (const i in regions) {
+            this.icons[regions[i].id] = []
+            var items = await WarpApi.dynamic(regions[i].id)
+            await Promise.all(items.mapItems.map(async (item) => {
+                var pos = getMapItemPosition(regions[i].id, item.x, item.y)
+                var icon = new PIXI.Sprite(WarpApi.icons[item.iconType])
+                icon.name = item.iconType
+                icon._id = `${item.x}:${item.y}`
 
-                        case "COLONIALS":
-                            icon.tint = (this.colonial_color)
-                            break;
-                    }
+                switch (item.teamId) {
+                    case "WARDENS":
+                        icon.tint = (this.warden_color)
+                        break;
 
-                    icon.position.set(pos[0], pos[1])
-                    icon.anchor.set(0.5)
-                    this.icons[r.id].push(icon)
-                    this.viewport.addChild(icon)
+                    case "COLONIALS":
+                        icon.tint = (this.colonial_color)
+                        break;
+                }
+
+                if (WarpApi.VORONOI.includes(item.iconType)) {
+                    this.voronoi.push({x: pos[0] + 11264 * 0.5, y:pos[1] + 12432 * 0.5})
+                    this.town_icons.push(icon)
+                }
+
+                icon.position.set(pos[0], pos[1])
+                icon.anchor.set(0.5)
+                this.icons[regions[i].id].push(icon)
+            }))
+
+            items = await WarpApi.statics(regions[i].id)
+            await items.mapTextItems.map(async (item) => {
+                var pos = getMapItemPosition(regions[i].id, item.x, item.y)
+                var text = new PIXI.Text(item.text, {
+                    fontFamily: 'Jost',
+                    fontSize: 128,
+                    fill: 0x140c1c,
+                    stroke: 0xdeeed6,
+                    strokeThickness: 8,
+                    align: 'center',
                 })
-
+                text.position.set(pos[0], pos[1])
+                text.scale.set(0.2);
+                text.anchor.set(0.5)
+                this.labels.push(text)
             })
 
-            await WarpApi.statics(r.id)
-            .then(async (items) => {
-                await items.mapTextItems.forEach((item) => {
-                    var pos = getMapItemPosition(r.id, item.x, item.y)
-                    var text = new PIXI.Text(item.text, {
-                        fontFamily: 'Jost',
-                        fontSize: 128,
-                        fill: 0x140c1c,
-                        stroke: 0xdeeed6,
-                        strokeThickness: 8,
-                        align: 'center',
-                    })
-                    text.position.set(pos[0], pos[1])
-                    text.scale.set(0.2);
-                    text.anchor.set(0.5)
-                    this.labels.push(text)
-                    this.viewport.addChild(text)
-                })
-
-            })
-
-
-            var text = new PIXI.Text(r.name, {
+            var text = new PIXI.Text(regions[i].name, {
                 fontFamily: 'Jost',
                 fontSize: 256,
                 fill: 0x140c1c,
@@ -146,11 +146,46 @@ export class Canvas {
             })
 
             this.hexNames.push(text)
-            this.viewport.addChild(text)
-            text.position.set(r.center[0],r.center[1])
+            text.position.set(regions[i].center[0],regions[i].center[1])
             text.anchor.set(0.5)
-        })
+        }
+        // this.viewport.addChild(this.icons)
+        await this.generate_voronoi_cells()
+        for (const i in regions) {
+            await Promise.all(this.icons[regions[i].id].map(async (i) => {this.viewport.addChild(i)}))
+        }
+        await Promise.all(this.labels.map(async (i) => {this.viewport.addChild(i)}))
+        await Promise.all(this.hexNames.map(async (i) => {this.viewport.addChild(i)}))
+    }
 
+    async generate_voronoi_cells() {
+        var bbox = {xl: 0, xr: 11264, yt: 0, yb: 12432};
+        var voro = new Voronoi()
+        var diagram = voro.compute(this.voronoi,bbox);
+
+        await Promise.all(diagram.cells.map((c) => {
+            var id = c.site.voronoiId
+            var index = this.voronoi.find((v) => v.voronoiId == id)
+            var icon = this.town_icons[this.voronoi.indexOf(index)]
+            var points = []
+            c.halfedges.forEach((he) => {
+                points.push(he.getStartpoint())
+                points.push(he.getEndpoint())
+            })
+            var uniq = [...new Set(points)];
+            var polygon_points = uniq.map((point) => {
+                return new PIXI.Point(point.x, point.y)
+            })
+            var polygon = new PIXI.Graphics()
+            polygon.position.set(11264 * -0.5, 12432 * -0.5)
+            polygon.lineStyle({width:Math.floor(10), color:0x000000, alpha:0.5})
+            polygon.beginFill(0xffffff,0.5)
+            polygon.drawPolygon(polygon_points)
+            polygon.tint = icon.tint
+            icon._polygon = polygon
+            this.viewport.addChild(polygon)
+            polygon.zIndex = -10
+        }))
     }
 
 
@@ -173,6 +208,10 @@ export class Canvas {
                         case "COLONIALS":
                             icon.tint = (this.colonial_color)
                             break;
+                    }
+
+                    if (icon._polygon) {
+                        icon._polygon.tint = icon.tint
                     }
                 })
 
@@ -206,14 +245,24 @@ export class Canvas {
             this.icons[r.id].forEach((icon) => {
                 icon.alpha = 1.0
                 icon.scale.set(1.0)
+
+                if (icon._polygon) {
+                    icon._polygon.alpha = 1.0
+                }
+
                 if (zoom < 0.5 && !WarpApi.TOWNS.includes(icon.name))
                     icon.alpha = 0.0
 
                 if (zoom < 0.5 && WarpApi.TOWNS.includes(icon.name))
-                    icon.scale.set(clamp(1.0 / (zoom),2.0,8.0))
+                    icon.scale.set(clamp(1.0 / (zoom),2.0,5.0))
 
-                if (zoom > 0.5)
+                if (zoom > 0.5) {
                     icon.scale.set(clamp(icon.scale.x / (zoom * 1.3),0.1,iconScale))
+                    if (icon._polygon) {
+                        icon._polygon.alpha = 0.0
+                    }
+                }
+
             })
         })
 
@@ -248,7 +297,6 @@ export class Canvas {
         last_pos.x += 11264 * 0.5;
         last_pos.y += 12432 * 0.5;
 
-        console.log(last_pos)
         brush.draw(last_pos, e.shiftKey)
 
         // connection.send_data({click: last_pos, erase: e.shiftKey, color:brush.color.toHex(), size: brush.size})

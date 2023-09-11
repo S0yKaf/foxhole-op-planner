@@ -9,7 +9,9 @@
 import * as PIXI from 'pixi.js';
 import { ref } from 'vue';
 import { Grayscale } from '@ckpack/vue-color';
-import appConfig from '~/app.config';
+
+
+const appConfig = useAppConfig()
 
 
 const colors = ref(appConfig.colors[0]);
@@ -46,7 +48,7 @@ watch(brushSize, () => {
 }
 
 .vc-grayscale {
-    width: 100%;
+    width: 200px;
 }
 
 /* The sticky class is added to the header with JS when it reaches its scroll position

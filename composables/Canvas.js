@@ -5,7 +5,6 @@ import { autoDetectRenderer } from 'pixi.js';
 import FontFaceObserver from 'fontfaceobserver';
 
 import { getMapItemPosition, regions } from './MapRegions';
-import appConfig from '~/app.config';
 
 
 export class Canvas {

@@ -10,3 +10,12 @@
 
 
 </script>
+
+<style>
+
+@font-face {
+  font-family: Jost;
+  src: url('/Jost-400-Book.ttf');
+}
+
+</style>

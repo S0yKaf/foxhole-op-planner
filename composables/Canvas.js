@@ -178,7 +178,7 @@ export class Canvas {
             })
             var polygon = new PIXI.Graphics()
             polygon.position.set(11264 * -0.5, 12432 * -0.5)
-            polygon.lineStyle({width:Math.floor(10), color:0x000000, alpha:0.5})
+            polygon.lineStyle({width:Math.floor(3), color:0x000000, alpha:0.8})
             polygon.beginFill(0xffffff,0.5)
             polygon.drawPolygon(polygon_points)
             polygon.tint = icon.tint

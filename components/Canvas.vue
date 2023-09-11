@@ -68,6 +68,11 @@ canvas.resize(window.innerWidth,window.innerHeight)
 onMounted(() => {
     document.getElementById("canvas").appendChild(canvas.app.view)
     window.addEventListener('resize', resize)
+
+    window.setInterval(() => {
+        canvas.refreshCaptures()
+    },30000)
+
     })
 
 function resize() {

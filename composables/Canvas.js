@@ -9,9 +9,13 @@ import { getMapItemPosition, regions } from './MapRegions';
 
 export class Canvas {
 
+
+    warden_color = 0x245682;
+    colonial_color = 0x516C4B;
+
     hexNames = []
     labels = []
-    icons = []
+    icons = {}
 
     app = new PIXI.Application({
         antialias: true,
@@ -75,43 +79,42 @@ export class Canvas {
         this.viewport.on("zoomed",this.onZoom, this)
 
         let font = new FontFaceObserver('Jost');
-        font.load().then(() => {
+        font.load(null,8000).then(() => {
                 this.setup_warApi();
         })
 
     }
 
     setup_warApi() {
-        const warden_color = 0x245682;
-        const colonial_color = 0x516C4B;
         regions.forEach(async (r) => {
-
-           await WarpApi.dynamic(r.id)
+            this.icons[r.id] = []
+            await WarpApi.dynamic(r.id)
             .then(async (items) => {
                 await items.mapItems.forEach((item) => {
                     var pos = getMapItemPosition(r.id, item.x, item.y)
                     var icon = new PIXI.Sprite(WarpApi.icons[item.iconType])
                     icon.name = item.iconType
+                    icon._id = `${item.x}:${item.y}`
 
                     switch (item.teamId) {
                         case "WARDENS":
-                            icon.tint = (warden_color)
+                            icon.tint = (this.warden_color)
                             break;
 
                         case "COLONIALS":
-                            icon.tint = (colonial_color)
+                            icon.tint = (this.colonial_color)
                             break;
                     }
 
                     icon.position.set(pos[0], pos[1])
                     icon.anchor.set(0.5)
-                    this.icons.push(icon)
+                    this.icons[r.id].push(icon)
                     this.viewport.addChild(icon)
                 })
 
             })
 
-           await WarpApi.statics(r.id)
+            await WarpApi.statics(r.id)
             .then(async (items) => {
                 await items.mapTextItems.forEach((item) => {
                     var pos = getMapItemPosition(r.id, item.x, item.y)
@@ -148,8 +151,35 @@ export class Canvas {
             text.anchor.set(0.5)
         })
 
+    }
 
 
+    timer = ms => new Promise(res => setTimeout(res, ms))
+    async refreshCaptures() {
+
+
+        for (const i in regions) {
+            WarpApi.dynamic(regions[i].id)
+            .then((items) => {
+                items.mapItems.forEach((item) => {
+                   var icon = this.icons[regions[i].id].find((i) => i._id == `${item.x}:${item.y}`)
+
+                    icon.tint = 0xffffff
+                    switch (item.teamId) {
+                        case "WARDENS":
+                            icon.tint = (this.warden_color)
+                            break;
+
+                        case "COLONIALS":
+                            icon.tint = (this.colonial_color)
+                            break;
+                    }
+                })
+
+            })
+
+            await this.timer(500);
+        }
     }
 
 
@@ -172,18 +202,19 @@ export class Canvas {
                 label.scale.set(clamp(label.scale.x / zoom,0.01,labelScale))
         })
 
-        this.icons.forEach((icon) => {
-            icon.alpha = 1.0
-            icon.scale.set(1.0)
-            if (zoom < 0.5 && !WarpApi.TOWNS.includes(icon.name))
-                icon.alpha = 0.0
+        regions.forEach((r) => {
+            this.icons[r.id].forEach((icon) => {
+                icon.alpha = 1.0
+                icon.scale.set(1.0)
+                if (zoom < 0.5 && !WarpApi.TOWNS.includes(icon.name))
+                    icon.alpha = 0.0
 
-            if (zoom < 0.5 && WarpApi.TOWNS.includes(icon.name))
-                icon.scale.set(clamp(1.0 / (zoom),2.0,8.0))
+                if (zoom < 0.5 && WarpApi.TOWNS.includes(icon.name))
+                    icon.scale.set(clamp(1.0 / (zoom),2.0,8.0))
 
-            if (zoom > 0.5)
-                icon.scale.set(clamp(icon.scale.x / (zoom * 1.3),0.1,iconScale))
-
+                if (zoom > 0.5)
+                    icon.scale.set(clamp(icon.scale.x / (zoom * 1.3),0.1,iconScale))
+            })
         })
 
         this.hexNames.forEach((hex) => {

@@ -4,6 +4,7 @@
         <input type="range" min="1" max="50" v-model="brushSize" class="slider" />
         <input type="checkbox" id="show_region"/>
         <label for="show_region"> Regions </label>
+        <Search/>
 
     </div>
 </template>

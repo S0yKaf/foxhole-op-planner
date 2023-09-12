@@ -17,5 +17,15 @@ export default defineAppConfig({
         '#6dc2ca',
         '#dad45e',
         '#deeed6',
-    ]
+    ],
+    theme: {
+        text_color: 0xdeeed6,
+        text_outline_color: 0x140c1c,
+
+        warden_color: 0x245682,
+        colonial_color: 0x516C4B,
+
+        canvas_background_color: 0x140c1c,
+
+    }
   })

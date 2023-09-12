@@ -2,17 +2,21 @@ import * as PIXI from 'pixi.js';
 import { Viewport } from 'pixi-viewport'
 import { autoDetectRenderer } from 'pixi.js';
 
+import { Layer, Stage } from '@pixi/layers'
+
 import FontFaceObserver from 'fontfaceobserver';
 import Voronoi from 'voronoi';
 
 import { getMapItemPosition, regions } from './MapRegions';
+import { smoothstep } from './Globals';
 
 
 export class Canvas {
 
+    appConfig = useAppConfig()
 
-    warden_color = 0x245682;
-    colonial_color = 0x516C4B;
+    warden_color = this.appConfig.theme.warden_color;
+    colonial_color = this.appConfig.theme.colonial_color;
 
     hexNames = []
     labels = []
@@ -22,7 +26,7 @@ export class Canvas {
 
     app = new PIXI.Application({
         antialias: true,
-        background: '#000000',
+        background: this.appConfig.theme.canvas_background_color,
         autoResize: true,
         resolution: devicePixelRatio,
     });
@@ -30,17 +34,24 @@ export class Canvas {
     viewport = new Viewport({
         screenWidth: window.innerWidth,
         screenHeight: window.innerHeight,
-        worldWidth: 1000,
-        worldHeight: 1000,
+        worldWidth: 11264,
+        worldHeight: 12432,
 
         events: this.app.renderer.events // the interaction module is important for wheel to work properly when renderer.view is placed or scaled
     })
+
+    layerHexName = new Layer()
+    layerIcons = new Layer()
+    layerTownIcons = new Layer()
+    layerLabels = new Layer()
+    layerRegion = new Layer()
 
     renderTexture
     renderTextureSprite
 
     constructor() {
 
+        this.app.stage = new Stage()
         this.app.stage.addChild(this.viewport)
         this.viewport
             .drag({mouseButtons: "middle"})
@@ -48,11 +59,12 @@ export class Canvas {
             .wheel()
             .decelerate()
 
-        var drawLayer = new PIXI.Container();
+        this.viewport.clampZoom({minScale:0.07,maxScale:8})
+        this.viewport.fit(true, 11264,12432)
 
         //{ 11264, 12432 }
         this.renderTexture = PIXI.RenderTexture.create({width: 11264, height:12432, scaleMode: PIXI.SCALE_MODES.NEAREST})
-        const texture = PIXI.Texture.from('foxhole_map.jpg');
+        const texture = PIXI.Texture.from('foxhole_map.webp');
         texture.baseTexture.scaleMode = PIXI.SCALE_MODES.LINEAR;
 
         var map = new PIXI.Sprite(texture);
@@ -70,9 +82,14 @@ export class Canvas {
 
 
         this.viewport.addChild(map);
-        this.viewport.addChild(drawLayer);
+        this.viewport.addChild(this.layerRegion)
         this.viewport.addChild(this.renderTextureSprite);
         this.viewport.addChild(brush.overlay)
+        this.viewport.addChild(this.layerIcons)
+        this.viewport.addChild(this.layerTownIcons)
+        this.viewport.addChild(this.layerLabels)
+        this.viewport.addChild(this.layerHexName)
+
         // this.viewport.addChild(brush.text)
         // Enable interactivity!
 
@@ -82,8 +99,9 @@ export class Canvas {
         this.viewport.on("zoomed",this.onZoom, this)
 
         let font = new FontFaceObserver('Jost');
-        font.load(null,8000).then(async () => {
+        font.load(null,30000).then(async () => {
                 await this.setup_warApi();
+                this.onZoom()
         })
 
     }
@@ -125,9 +143,9 @@ export class Canvas {
                 var text = new PIXI.Text(item.text, {
                     fontFamily: 'Jost',
                     fontSize: 128,
-                    fill: 0x140c1c,
-                    stroke: 0xdeeed6,
-                    strokeThickness: 8,
+                    fill: this.appConfig.theme.text_color,
+                    stroke: this.appConfig.theme.text_outline_color,
+                    strokeThickness: 12,
                     align: 'center',
                 })
                 text.position.set(pos[0], pos[1])
@@ -139,8 +157,8 @@ export class Canvas {
             var text = new PIXI.Text(regions[i].name, {
                 fontFamily: 'Jost',
                 fontSize: 256,
-                fill: 0x140c1c,
-                stroke: 0xdeeed6,
+                fill: this.appConfig.theme.text_color,
+                stroke: this.appConfig.theme.text_outline_color,
                 strokeThickness: 16,
                 align: 'center',
             })
@@ -152,10 +170,18 @@ export class Canvas {
         // this.viewport.addChild(this.icons)
         await this.generate_voronoi_cells()
         for (const i in regions) {
-            await Promise.all(this.icons[regions[i].id].map(async (i) => {this.viewport.addChild(i)}))
+            await Promise.all(this.icons[regions[i].id].map(async (i) => {
+
+                if (WarpApi.TOWNS.includes(i.name)) {
+                    this.layerTownIcons.addChild(i)
+                } else {
+                    this.layerIcons.addChild(i)
+                }
+
+            }))
         }
-        await Promise.all(this.labels.map(async (i) => {this.viewport.addChild(i)}))
-        await Promise.all(this.hexNames.map(async (i) => {this.viewport.addChild(i)}))
+        await Promise.all(this.labels.map(async (i) => {this.layerLabels.addChild(i)}))
+        await Promise.all(this.hexNames.map(async (i) => {this.layerHexName.addChild(i)}))
     }
 
     async generate_voronoi_cells() {
@@ -178,12 +204,12 @@ export class Canvas {
             })
             var polygon = new PIXI.Graphics()
             polygon.position.set(11264 * -0.5, 12432 * -0.5)
-            polygon.lineStyle({width:Math.floor(3), color:0x000000, alpha:0.8})
-            polygon.beginFill(0xffffff,0.5)
+            polygon.lineStyle({width:Math.floor(3), color:0x000000, alpha:1.0})
+            polygon.beginFill(0xffffff,1.0)
             polygon.drawPolygon(polygon_points)
             polygon.tint = icon.tint
             icon._polygon = polygon
-            this.viewport.addChild(polygon)
+            this.layerRegion.addChild(polygon)
             polygon.zIndex = -10
         }))
     }
@@ -228,49 +254,43 @@ export class Canvas {
     }
 
     onZoom(e) {
-        var labelScale = 0.2
+        var labelScale = 0.25
         var regionScale = 1.0
         var iconScale = 1.0
         var zoom = this.viewport.scale.x
-        this.labels.forEach((label) => {
-            label.alpha = 1.0
-            label.scale.set(0.2)
-            if (zoom < 0.5)
-                label.alpha = 0.0
-            if (zoom > 0.5)
-                label.scale.set(clamp(label.scale.x / zoom,0.01,labelScale))
-        })
+        console.log(zoom)
 
-        regions.forEach((r) => {
-            this.icons[r.id].forEach((icon) => {
-                icon.alpha = 1.0
-                icon.scale.set(1.0)
+        // LABELS
+        this.layerLabels.alpha = smoothstep(0,0.5,zoom)
+        this.layerLabels.children.forEach((c) => {c.scale.set(labelScale)})
 
-                if (icon._polygon) {
-                    icon._polygon.alpha = 1.0
-                }
+        if (zoom > 0.5)
+            this.layerLabels.children.forEach((c) => {c.scale.set(clamp(c.scale.x / (zoom + 0.5),0.01,labelScale))})
 
-                if (zoom < 0.5 && !WarpApi.TOWNS.includes(icon.name))
-                    icon.alpha = 0.0
+        // ICONS
+        this.layerIcons.alpha = smoothstep(0,0.5,zoom)
+        this.layerIcons.children.forEach((c) => {c.scale.set(1.0)})
+        this.layerTownIcons.children.forEach((c) => {c.scale.set(1.0)})
 
-                if (zoom < 0.5 && WarpApi.TOWNS.includes(icon.name))
-                    icon.scale.set(clamp(1.0 / (zoom),2.0,5.0))
+        if (zoom < 0.5) {
+            this.layerTownIcons.children.forEach((c) => {c.scale.set(clamp(1.0 / (zoom),2.0,5.0))})
+        }
 
-                if (zoom > 0.5) {
-                    icon.scale.set(clamp(icon.scale.x / (zoom * 1.3),0.1,iconScale))
-                    if (icon._polygon) {
-                        icon._polygon.alpha = 0.0
-                    }
-                }
 
-            })
-        })
+        if (zoom > 0.5) {
+            this.layerIcons.children.forEach((c) => {c.scale.set(clamp(c.scale.x / (zoom * 1.3),0.1,iconScale))})
+            this.layerTownIcons.children.forEach((c) => {c.scale.set(clamp(c.scale.x / (zoom * 1.3),0.1,iconScale))})
+        }
 
-        this.hexNames.forEach((hex) => {
-            hex.alpha = 1.0
-            if (zoom > 0.5)
-                hex.alpha = 0.0
-        })
+        // HEX NAME
+        this.layerHexName.alpha = 1.0
+        this.layerHexName.alpha = smoothstep(0.5,0,zoom)
+
+
+        //REGIONS
+        this.layerRegion.alpha = smoothstep(0.4,0,zoom)
+        this.layerRegion.alpha = clamp(this.layerRegion.alpha,0.2,0.8)
+
     }
 
     move(e) {

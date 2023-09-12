@@ -2,6 +2,9 @@
     <div class="header" id="myHeader">
         <Grayscale v-model="colors" :palette='palette'></Grayscale>
         <input type="range" min="1" max="50" v-model="brushSize" class="slider" />
+        <input type="checkbox" id="show_region"/>
+        <label for="show_region"> Regions </label>
+
     </div>
 </template>
 
@@ -35,20 +38,33 @@ watch(brushSize, () => {
  /* Style the header */
 .header {
     display: flex;
-    justify-content: space-between;
-    margin: 0 auto;
-    padding: 16px 20px;
-    background: #00000088;
-    color: #913333;
+    vertical-align: center;
+    text-align: center;
+    /* padding-top: 1em; */
+    padding-left: 1em;
+    /* height: 3em; */
+    width: 100%;
+    /* margin: 0 auto; */
+    /* padding: 16px 20px; */
+    background: #000000DD;
+    color: #a22aad;
     position: absolute;
+    font-size: 24px;
 }
 
 .slider {
+    vertical-align: center;
+    /* height: auto; */
+    display: flex;
     margin-left: 20px;
 }
 
 .vc-grayscale {
-    width: 200px;
+    margin-top: 0.3em;
+    vertical-align: center;
+    align-content: center;
+    width: auto;
+    height: 0.7em;
 }
 
 /* The sticky class is added to the header with JS when it reaches its scroll position

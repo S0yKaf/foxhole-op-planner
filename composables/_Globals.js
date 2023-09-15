@@ -1,5 +1,9 @@
-export var brush = new Brush()
 export var canvas = new Canvas()
+export var connection
+
+export function set_connection(conn) {
+    connection = conn
+}
 
 export const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
 

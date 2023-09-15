@@ -1,5 +1,6 @@
 <template>
-  <Toolbar/>
+  <Tools/>
+  <TopBar/>
   <Canvas/>
 </template>
 

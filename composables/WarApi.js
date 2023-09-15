@@ -8,6 +8,7 @@ class WarpApiSingleton {
     icons = {}
     TOWNS = [8,27,29,28,45,56,57,58]
     VORONOI = [8,45,56,57,58]
+    _activeHexes = []
 
     constructor() {
 
@@ -15,10 +16,25 @@ class WarpApiSingleton {
             this.icons[key] = PIXI.Texture.from(path)
           }
 
+    }
 
+    async getActiveHexes() {
+
+        if (await this._activeHexes.length > 0) {
+            return this._activeHexes
+        }
+
+        var endpoint = `${this.url}/maps`
+
+        var res = await fetch(endpoint)
+        var maps = await res.json()
+        this._activeHexes = maps
+        console.log(maps)
+        return maps
     }
 
     async statics(map) {
+
         var endpoint = `${this.url}/maps/${map}/static`
 
         var res = await fetch(endpoint)
@@ -28,6 +44,7 @@ class WarpApiSingleton {
     }
 
     async dynamic(map) {
+
         var endpoint = `${this.url}/maps/${map}/dynamic/public`
 
         var res = await fetch(endpoint)

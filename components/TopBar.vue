@@ -1,9 +1,9 @@
 <template>
     <div class="header" id="myHeader">
-        <Grayscale v-model="colors" :palette='palette'></Grayscale>
-        <input type="range" min="1" max="50" v-model="brushSize" class="slider" />
-        <input type="checkbox" id="show_region"/>
-        <label for="show_region"> Regions </label>
+        <div>
+            <input type="checkbox" id="show_region" v-model="regions" @change="onRegionChange"/>
+            <label for="show_region"> Regions </label>
+        </div>
         <Search/>
 
     </div>
@@ -12,25 +12,18 @@
 <script setup>
 import * as PIXI from 'pixi.js';
 import { ref } from 'vue';
-import { Grayscale } from '@ckpack/vue-color';
-
 
 const appConfig = useAppConfig()
 
 
-const colors = ref(appConfig.colors[0]);
-const palette = ref(appConfig.colors)
-const brushSize = ref(10);
+const regions = ref(true)
 
 
-watch(colors, () => {
-    var c = new PIXI.Color(colors.value.hex)
-    brush.color = c
-}, { immediate: true })
+function onRegionChange(e) {
+    canvas.showRegions = regions.value
+    canvas.update_visible()
+}
 
-watch(brushSize, () => {
-    brush.size = brushSize.value
-}, { immediate: true })
 
 </script>
 
@@ -43,6 +36,7 @@ watch(brushSize, () => {
     text-align: center;
     /* padding-top: 1em; */
     padding-left: 1em;
+    column-gap: 1em;
     /* height: 3em; */
     width: 100%;
     /* margin: 0 auto; */
@@ -51,21 +45,6 @@ watch(brushSize, () => {
     color: #a22aad;
     position: absolute;
     font-size: 24px;
-}
-
-.slider {
-    vertical-align: center;
-    /* height: auto; */
-    display: flex;
-    margin-left: 20px;
-}
-
-.vc-grayscale {
-    margin-top: 0.3em;
-    vertical-align: center;
-    align-content: center;
-    width: auto;
-    height: 0.7em;
 }
 
 /* The sticky class is added to the header with JS when it reaches its scroll position

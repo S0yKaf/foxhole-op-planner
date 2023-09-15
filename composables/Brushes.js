@@ -9,19 +9,22 @@ export class Brush {
     brush = new PIXI.Graphics()
     line = new PIXI.Graphics()
     overlay = new PIXI.Graphics()
-    // text = new PIXI.Text('This is a PixiJS text', {
-    //     fontFamily: 'Arial',
-    //     fontSize: 24,
-    //     fill: 0xff1010,
-    //     align: 'center',
-    // })
 
     drawing = false
     last_pos = null
 
-    constructor(size=20, color=new PIXI.Color('blue')) {
+    constructor(listen=false, size=20, color=new PIXI.Color('blue')) {
         this.size = size
         this.color = color
+
+        canvas.layerOverlay.addChild(this.overlay)
+
+        if (listen) {
+            canvas.on("move", this.onMove, this)
+            canvas.on("click", this.onClick, this)
+            canvas.on("up", this.onUp, this)
+        }
+
     }
 
     update_overlay(pos) {
@@ -32,10 +35,6 @@ export class Brush {
             .beginFill(c)
             .drawCircle(pos.x, pos.y, Math.floor(this.size))
 
-        // this.text.text = "Hello"
-        // this.text.position = pos
-        // this.text.scale.x = 1 / canvas.viewport.transform.scale.x
-        // this.text.scale.y = 1 / canvas.viewport.transform.scale.y
     }
 
 
@@ -100,6 +99,31 @@ export class Brush {
         .lineStyle({width:Math.floor(this.size * 2), color:this.color})
         .moveTo(from.x, from.y)
         .lineTo(to.x, to.y)
+    }
+
+
+    onClick(last_pos,shift) {
+        this.draw(last_pos,shift)
+    }
+
+    onMove(pos, last_pos, shift) {
+        this.update_overlay(pos)
+        if (this.drawing) {
+            this.draw(last_pos,shift)
+        }
+
+    }
+
+    onUp() {
+        this.up()
+    }
+
+    delete() {
+        canvas.layerOverlay.removeChild(this.overlay)
+        canvas.removeListener("move", this.onMove, this)
+        canvas.removeListener("click", this.onClick, this)
+        canvas.removeListener("up", this.onUp, this)
+        Object.keys(this).forEach(key => delete this[key])
     }
 
 }

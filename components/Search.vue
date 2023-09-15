@@ -14,13 +14,16 @@
 
 const appConfig = useAppConfig()
 var selected
-var labels = canvas.layerLabels.children.map(c => {return c.text})
-const options = ref(canvas.layerLabels.children.map(c => {
-    return {
-        text: c.text,
-        value: c.text
-    }
-}))
+const options = ref()
+
+canvas.on("loaded", async () => {
+    options.value = await canvas.layerLabels.children.map(c => {
+        return {
+            text: c.text,
+            value: c.text
+        }
+    })
+})
 
 function onChange(event) {
     if (!event.target)

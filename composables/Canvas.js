@@ -6,12 +6,13 @@ import { Layer, Stage } from '@pixi/layers'
 
 import FontFaceObserver from 'fontfaceobserver';
 import Voronoi from 'voronoi';
+import { EventEmitter, ValidEventTypes } from "eventemitter3";
 
 import { getMapItemPosition, regions } from './MapRegions';
-import { smoothstep } from './Globals';
+import { smoothstep } from './_Globals';
 
 
-export class Canvas {
+export class Canvas extends EventEmitter {
 
     appConfig = useAppConfig()
 
@@ -36,21 +37,26 @@ export class Canvas {
         screenHeight: window.innerHeight,
         worldWidth: 11264,
         worldHeight: 12432,
+        disableOnContextMenu: true,
 
         events: this.app.renderer.events // the interaction module is important for wheel to work properly when renderer.view is placed or scaled
     })
 
     layerHexName = new Layer()
     layerIcons = new Layer()
+    layerOverlay = new Layer()
     layerTownIcons = new Layer()
+    layerStickers = new Layer()
     layerLabels = new Layer()
     layerRegion = new Layer()
+
+    showRegions = true
 
     renderTexture
     renderTextureSprite
 
     constructor() {
-
+        super()
         this.app.stage = new Stage()
         this.app.stage.addChild(this.viewport)
         this.viewport
@@ -64,34 +70,33 @@ export class Canvas {
 
         //{ 11264, 12432 }
         this.renderTexture = PIXI.RenderTexture.create({width: 11264, height:12432, scaleMode: PIXI.SCALE_MODES.NEAREST})
-        const texture = PIXI.Texture.from('foxhole_map.webp');
-        texture.baseTexture.scaleMode = PIXI.SCALE_MODES.LINEAR;
+        const texture = PIXI.Texture.from('foxhole_map.webp')
+        texture.baseTexture.scaleMode = PIXI.SCALE_MODES.LINEAR
 
-        var map = new PIXI.Sprite(texture);
+        var map = new PIXI.Sprite(texture)
 
         map.anchor.set(0.5)
         map.position.set(0,0)
 
-        map.eventMode = "static";
+        map.eventMode = "static"
 
-        this.renderTextureSprite = new PIXI.Sprite(this.renderTexture);
+        this.renderTextureSprite = new PIXI.Sprite(this.renderTexture)
         this.renderTextureSprite.anchor.set(0.5);
-        this.renderTextureSprite.scaleMode = PIXI.SCALE_MODES.NEAREST;
+        this.renderTextureSprite.scaleMode = PIXI.SCALE_MODES.NEAREST
 
         this.viewport.eventMode = "static";
 
 
         this.viewport.addChild(map);
         this.viewport.addChild(this.layerRegion)
-        this.viewport.addChild(this.renderTextureSprite);
-        this.viewport.addChild(brush.overlay)
+        this.viewport.addChild(this.renderTextureSprite)
+        this.viewport.addChild(this.layerOverlay)
         this.viewport.addChild(this.layerIcons)
         this.viewport.addChild(this.layerTownIcons)
+        this.viewport.addChild(this.layerStickers)
         this.viewport.addChild(this.layerLabels)
         this.viewport.addChild(this.layerHexName)
 
-        // this.viewport.addChild(brush.text)
-        // Enable interactivity!
 
         this.viewport.on("pointermove", this.move, this)
         this.viewport.on("pointerdown", this.onClick, this)
@@ -102,17 +107,23 @@ export class Canvas {
         font.load(null,30000).then(async () => {
                 await this.setup_warApi();
                 this.onZoom()
+                this.emit("loaded")
         })
 
     }
 
-    async setup_warApi() {
+    update_visible() {
+        this.layerRegion.alpha = this.showRegions ? 0.8 : 0.0
+    }
 
-        for (const i in regions) {
-            this.icons[regions[i].id] = []
-            var items = await WarpApi.dynamic(regions[i].id)
+    async setup_warApi() {
+        var hexes = await WarpApi.getActiveHexes()
+
+        for (const i in hexes) {
+            this.icons[hexes[i]] = []
+            var items = await WarpApi.dynamic(hexes[i])
             await Promise.all(items.mapItems.map(async (item) => {
-                var pos = getMapItemPosition(regions[i].id, item.x, item.y)
+                var pos = getMapItemPosition(hexes[i], item.x, item.y)
                 var icon = new PIXI.Sprite(WarpApi.icons[item.iconType])
                 icon.name = item.iconType
                 icon._id = `${item.x}:${item.y}`
@@ -134,12 +145,12 @@ export class Canvas {
 
                 icon.position.set(pos[0], pos[1])
                 icon.anchor.set(0.5)
-                this.icons[regions[i].id].push(icon)
+                this.icons[hexes[i]].push(icon)
             }))
 
-            items = await WarpApi.statics(regions[i].id)
+            items = await WarpApi.statics(hexes[i])
             await items.mapTextItems.map(async (item) => {
-                var pos = getMapItemPosition(regions[i].id, item.x, item.y)
+                var pos = getMapItemPosition(hexes[i], item.x, item.y)
                 var text = new PIXI.Text(item.text, {
                     fontFamily: 'Jost',
                     fontSize: 128,
@@ -154,7 +165,7 @@ export class Canvas {
                 this.labels.push(text)
             })
 
-            var text = new PIXI.Text(regions[i].name, {
+            var text = new PIXI.Text(regions[hexes[i]].name, {
                 fontFamily: 'Jost',
                 fontSize: 256,
                 fill: this.appConfig.theme.text_color,
@@ -164,13 +175,14 @@ export class Canvas {
             })
 
             this.hexNames.push(text)
-            text.position.set(regions[i].center[0],regions[i].center[1])
+            text.position.set(regions[hexes[i]].center[0],regions[hexes[i]].center[1])
             text.anchor.set(0.5)
         }
         // this.viewport.addChild(this.icons)
         await this.generate_voronoi_cells()
-        for (const i in regions) {
-            await Promise.all(this.icons[regions[i].id].map(async (i) => {
+        var hexes = await WarpApi.getActiveHexes()
+        for (const i in hexes) {
+            await Promise.all(this.icons[hexes[i]].map(async (i) => {
 
                 if (WarpApi.TOWNS.includes(i.name)) {
                     this.layerTownIcons.addChild(i)
@@ -219,11 +231,12 @@ export class Canvas {
     async refreshCaptures() {
 
 
-        for (const i in regions) {
-            WarpApi.dynamic(regions[i].id)
+        var hexes = await WarpApi.getActiveHexes()
+        for (const i in hexes) {
+            WarpApi.dynamic(hexes[i])
             .then((items) => {
                 items.mapItems.forEach((item) => {
-                   var icon = this.icons[regions[i].id].find((i) => i._id == `${item.x}:${item.y}`)
+                   var icon = this.icons[hexes[i]].find((i) => i._id == `${item.x}:${item.y}`)
 
                     icon.tint = 0xffffff
                     switch (item.teamId) {
@@ -291,6 +304,11 @@ export class Canvas {
         this.layerRegion.alpha = smoothstep(0.4,0,zoom)
         this.layerRegion.alpha = clamp(this.layerRegion.alpha,0.2,0.8)
 
+
+        // Overrides
+        this.layerRegion.alpha = this.showRegions ? this.layerRegion.alpha : 0.0
+
+
     }
 
     move(e) {
@@ -299,14 +317,11 @@ export class Canvas {
         last_pos.y += 12432 * 0.5;
 
         var pos = this.viewport.toWorld(e.globalX,e.globalY);
-        brush.update_overlay(pos)
-        if (brush.drawing) {
-            brush.draw(last_pos, e.shiftKey)
-        }
+        this.emit("move", pos, last_pos, e.shiftKey)
     }
 
     onUp(e) {
-        brush.up()
+        this.emit("up")
     }
 
     onClick(e) {
@@ -317,9 +332,8 @@ export class Canvas {
         last_pos.x += 11264 * 0.5;
         last_pos.y += 12432 * 0.5;
 
-        brush.draw(last_pos, e.shiftKey)
+        this.emit("click", last_pos, e.shiftKey)
 
-        // connection.send_data({click: last_pos, erase: e.shiftKey, color:brush.color.toHex(), size: brush.size})
     }
 
     init_from_host(state) {

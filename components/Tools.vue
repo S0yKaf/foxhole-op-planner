@@ -2,7 +2,7 @@
     <div class=container>
         <div class="panel tools">
             <button v-for="tool in tools" :key="tool.name" :value="tool.name" @click="select(tool.component)">
-                {{ tool.name }}
+                {{ tool.name }} ({{tool.shortcut}})
             </button>
         </div>
         <div class="panel tools-options">
@@ -15,21 +15,32 @@
 import * as PIXI from 'pixi.js';
 import { ref } from 'vue';
 import { Grayscale } from '@ckpack/vue-color';
-import { ToolBrush, ToolMove } from '#components';
+import { ToolBrush, ToolMapObjects, ToolMove } from '#components';
 
 
 const appConfig = useAppConfig()
 
 const selected = ref(ToolMove)
 const tools = ref([
-    {name: "Move", component: ToolMove},
-    {name: "Brush", component: ToolBrush}
+    {name: "Move", component: ToolMove, shortcut: "M"},
+    {name: "Brush", component: ToolBrush, shortcut: "B"},
+    {name: "Map Objects", component: ToolMapObjects, shortcut: "T"}
 
 ])
 
 const select = (comp) => {
     selected.value = comp
 }
+
+onMounted(() => {
+    window.addEventListener("keypress", (event) => {
+        var key = event.key.toUpperCase()
+        var tool = tools.value.find((obj) => obj.shortcut == key)
+        if (tool) {
+            select(tool.component)
+        }
+    })
+})
 
 </script>
 

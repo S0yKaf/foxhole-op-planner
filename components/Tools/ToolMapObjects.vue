@@ -7,10 +7,31 @@
 <script setup>
 
 canvas.viewport.plugins.remove('drag')
-canvas.viewport.drag({mouseButtons: "left-middle"})
+canvas.viewport.drag({mouseButtons: "middle"})
+
+canvas.viewport.on("move", onMove)
+canvas.viewport.on("click", onClick)
+
+function onClick(e) {
+
+    if (!e.originalEvent.button == 0) {
+        return;
+    }
+
+    var pos = canvas.viewport.toWorld(e.globalX,e.globalY);
+    var tower = new Intel("WARDEN")
+    tower.position = pos
+    canvas.layerStickers.addChild(tower)
+}
+
+function onMove(e) {
+    var pos = canvas.viewport.toWorld(e.globalX,e.globalY);
+
+}
 
 onBeforeUnmount(() => {
-    console.log("UNLOADING")
+    canvas.viewport.removeListener("move", onMove)
+    canvas.viewport.removeListener("click", onClick)
 })
 
 </script>

@@ -23,6 +23,7 @@ class Stickers extends PIXI.Container {
     constructor(faction = "NEUTRAL", texture) {
         super()
         this.sortChildren = true
+        this.faction = faction
         switch (faction) {
             case "WARDEN":
                 this.fill = this.appconfig.theme.warden_color
@@ -41,7 +42,15 @@ class Stickers extends PIXI.Container {
         this.sprite.scale.set(0.20,0.20)
         this.sprite.tint = this.fill
         this.addChild(this.sprite)
+        this.eventMode = "static"
 
+        this.on("rightclick", this.onRightClick, this)
+
+    }
+
+    onRightClick(e) {
+        console.log("CLICK")
+        this.destroy()
     }
 
 }

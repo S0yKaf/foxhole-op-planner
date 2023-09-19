@@ -31,7 +31,7 @@ export class Client extends EventEmitter {
 
         });
 
-        this.peer.on("error", function(err) {
+        this.peer.on("error", (err) => {
             console.log(err)
         })
 
@@ -54,6 +54,10 @@ export class Client extends EventEmitter {
             case "update_brush":
                 this.brushes[data.peer].size = data.args[0]
                 this.brushes[data.peer].color = data.args[1]
+                break;
+
+            case "object":
+                canvas.layerStickers.addChild(data.args)
                 break;
 
             case "init":

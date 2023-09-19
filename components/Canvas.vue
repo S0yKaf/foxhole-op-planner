@@ -39,6 +39,8 @@ onMounted(() => {
 
     })
 
+    globalThis.__PIXI_APP__ = canvas.app;
+
 function resize() {
     canvas.resize(window.innerWidth,window.innerHeight)
 }

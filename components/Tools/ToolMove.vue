@@ -1,6 +1,6 @@
 <template>
     <div>
-
+        Left Click: Move
     </div>
 </template>
 

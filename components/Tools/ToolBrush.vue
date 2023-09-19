@@ -1,5 +1,10 @@
 <template>
     <div>
+        Left Click: Draw
+        <br/>
+        Shift Click: Erase
+        <br />
+        Middle Click: Move
         <Grayscale v-model="colors" :palette='palette'></Grayscale>
         <input type="range" min="1" max="50" v-model="brushSize" class="slider" />
     </div>

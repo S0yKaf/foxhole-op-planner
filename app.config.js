@@ -1,5 +1,6 @@
 export default defineAppConfig({
     peerjs_config: {},
+    draw_texture_scale: 0.5,
     colors: [
         '#140c1c',
         '#442434',

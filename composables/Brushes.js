@@ -50,16 +50,16 @@ export class Brush {
         this.brush
             .clear()
             .beginFill(this.color)
-            .drawCircle(pos.x, pos.y, Math.floor(this.size))
+            .drawCircle(pos.x * 0.5, pos.y * 0.5, Math.floor(this.size * 0.5))
 
         canvas.render(this.brush)
 
         if (this.last_pos) {
                 this.line
                     .clear()
-                    .lineStyle({width:Math.floor(this.size * 2), color:this.color})
-                    .moveTo(this.last_pos.x, this.last_pos.y)
-                    .lineTo(pos.x, pos.y)
+                    .lineStyle({width:Math.floor(this.size * 2 * 0.5), color:this.color})
+                    .moveTo(this.last_pos.x * 0.5, this.last_pos.y * 0.5)
+                    .lineTo(pos.x * 0.5, pos.y * 0.5)
 
                 canvas.render(this.line)
             }
@@ -71,36 +71,6 @@ export class Brush {
         this.drawing = false
         this.last_pos = null
     }
-
-    get(to) {
-        var b = this.brush
-
-        b.blendMode = PIXI.BLEND_MODES.NORMAL
-        if (this.erase) {
-            b.blendMode = PIXI.BLEND_MODES.ERASE
-        }
-
-        return b
-            .clear()
-            .beginFill(this.color)
-            .drawCircle(to.x, to.y, Math.floor(this.size))
-    }
-
-    get_line(from, to) {
-        var l = this.line
-
-        l.blendMode = PIXI.BLEND_MODES.NORMAL
-        if (this.erase) {
-            l.blendMode = PIXI.BLEND_MODES.ERASE
-        }
-
-        return l
-        .clear()
-        .lineStyle({width:Math.floor(this.size * 2), color:this.color})
-        .moveTo(from.x, from.y)
-        .lineTo(to.x, to.y)
-    }
-
 
     onClick(last_pos,shift) {
         this.draw(last_pos,shift)

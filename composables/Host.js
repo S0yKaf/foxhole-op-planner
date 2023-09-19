@@ -53,6 +53,10 @@ export class Host extends EventEmitter {
                 this.brushes[data.peer].up()
                 break;
 
+            case "object":
+                canvas.layerStickers.addChild(data.args)
+                break;
+
             case "update_brush":
                 this.brushes[data.peer].size = data.args[0]
                 this.brushes[data.peer].color = data.args[1]

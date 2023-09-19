@@ -15,7 +15,7 @@
 import * as PIXI from 'pixi.js';
 import { ref } from 'vue';
 import { Grayscale } from '@ckpack/vue-color';
-import { ToolBrush, ToolMapObjects, ToolMove } from '#components';
+import { ToolBrush, ToolMapObjects, ToolMesure, ToolMove } from '#components';
 
 
 const appConfig = useAppConfig()
@@ -24,7 +24,8 @@ const selected = ref(ToolMove)
 const tools = ref([
     {name: "Move", component: ToolMove, shortcut: "M"},
     {name: "Brush", component: ToolBrush, shortcut: "B"},
-    {name: "Map Objects", component: ToolMapObjects, shortcut: "T"}
+    {name: "Map Objects", component: ToolMapObjects, shortcut: "T"},
+    {name: "Mesure", component: ToolMesure, shortcut: "D"}
 
 ])
 
@@ -54,6 +55,7 @@ onMounted(() => {
     position: absolute;
     gap: 1em;
     height: 50em;
+    width: 16em;
 }
 
 .panel {
@@ -65,7 +67,7 @@ onMounted(() => {
     flex-direction: column;
     padding: 1em;
     margin-left: 20px;
-    min-height: 20em;
+    /* min-height: 20em; */
     min-width: 10em;
 }
 

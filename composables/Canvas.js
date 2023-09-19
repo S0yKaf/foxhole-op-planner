@@ -16,6 +16,8 @@ export class Canvas extends EventEmitter {
 
     appConfig = useAppConfig()
 
+    SCALE = this.appConfig.draw_texture_scale
+
     warden_color = this.appConfig.theme.warden_color;
     colonial_color = this.appConfig.theme.colonial_color;
 
@@ -24,6 +26,8 @@ export class Canvas extends EventEmitter {
     icons = {}
     voronoi = []
     town_icons = []
+
+    mapObjects = []
 
     app = new PIXI.Application({
         antialias: true,
@@ -69,7 +73,7 @@ export class Canvas extends EventEmitter {
         this.viewport.fit(true, 11264,12432)
 
         //{ 11264, 12432 }
-        this.renderTexture = PIXI.RenderTexture.create({width: 11264, height:12432, scaleMode: PIXI.SCALE_MODES.NEAREST})
+        this.renderTexture = PIXI.RenderTexture.create({width: 11264 * this.SCALE, height:12432 * this.SCALE, scaleMode: PIXI.SCALE_MODES.NEAREST})
         const texture = PIXI.Texture.from('foxhole_map.webp')
         texture.baseTexture.scaleMode = PIXI.SCALE_MODES.LINEAR
 
@@ -81,6 +85,7 @@ export class Canvas extends EventEmitter {
         map.eventMode = "static"
 
         this.renderTextureSprite = new PIXI.Sprite(this.renderTexture)
+        this.renderTextureSprite.scale.set(1/this.SCALE,1/this.SCALE)
         this.renderTextureSprite.anchor.set(0.5);
         this.renderTextureSprite.scaleMode = PIXI.SCALE_MODES.NEAREST
 
@@ -177,6 +182,7 @@ export class Canvas extends EventEmitter {
             this.hexNames.push(text)
             text.position.set(regions[hexes[i]].center[0],regions[hexes[i]].center[1])
             text.anchor.set(0.5)
+            text.eventMode = "none"
         }
         // this.viewport.addChild(this.icons)
         await this.generate_voronoi_cells()

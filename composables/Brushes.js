@@ -50,16 +50,16 @@ export class Brush {
         this.brush
             .clear()
             .beginFill(this.color)
-            .drawCircle(pos.x * 0.5, pos.y * 0.5, Math.floor(this.size * 0.5))
+            .drawCircle(pos.x , pos.y , Math.floor(this.size ))
 
         canvas.render(this.brush)
 
         if (this.last_pos) {
                 this.line
                     .clear()
-                    .lineStyle({width:Math.floor(this.size * 2 * 0.5), color:this.color})
-                    .moveTo(this.last_pos.x * 0.5, this.last_pos.y * 0.5)
-                    .lineTo(pos.x * 0.5, pos.y * 0.5)
+                    .lineStyle({width:Math.floor(this.size * 2 ), color:this.color})
+                    .moveTo(this.last_pos.x , this.last_pos.y )
+                    .lineTo(pos.x , pos.y )
 
                 canvas.render(this.line)
             }

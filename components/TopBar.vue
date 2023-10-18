@@ -3,6 +3,8 @@
         <div>
             <input type="checkbox" id="show_region" v-model="regions" @change="onRegionChange"/>
             <label for="show_region"> Regions </label>
+            <input type="checkbox" id="show_labels" v-model="labels" @change="onLabelChange"/>
+            <label for="show_labels"> Labels </label>
         </div>
         <Search/>
 
@@ -17,10 +19,16 @@ const appConfig = useAppConfig()
 
 
 const regions = ref(true)
+const labels = ref(true)
 
 
 function onRegionChange(e) {
     canvas.showRegions = regions.value
+    canvas.update_visible()
+}
+
+function onLabelChange(e) {
+    canvas.showLabels = labels.value
     canvas.update_visible()
 }
 

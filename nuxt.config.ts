@@ -1,5 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 
+import { Head } from "#build/components";
+
 export default defineNuxtConfig({
   devtools: { enabled: true },
   ssr: false,
@@ -10,6 +12,9 @@ export default defineNuxtConfig({
   app: {
     // baseURL: '/foxhole-op-planner/',
     buildAssetsDir: 'assets',
+    head: {
+      script: [{src: 'https://apis.google.com/js/api.js'}]
+    }
   },
   modules: [
     'nuxt-vue3-google-signin'

@@ -28,5 +28,9 @@ export default defineAppConfig({
 
         canvas_background_color: 0x140c1c,
 
+    },
+    hexes: {
+        x: 1024,
+        y: 888,
     }
   })

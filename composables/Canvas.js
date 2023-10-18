@@ -39,13 +39,15 @@ export class Canvas extends EventEmitter {
     viewport = new Viewport({
         screenWidth: window.innerWidth,
         screenHeight: window.innerHeight,
-        worldWidth: 11264,
+        worldWidth: 14336,
         worldHeight: 12432,
         disableOnContextMenu: true,
 
         events: this.app.renderer.events // the interaction module is important for wheel to work properly when renderer.view is placed or scaled
     })
 
+    layerMap = new Layer()
+    layerDrawing = new Layer()
     layerHexName = new Layer()
     layerIcons = new Layer()
     layerOverlay = new Layer()
@@ -55,9 +57,7 @@ export class Canvas extends EventEmitter {
     layerRegion = new Layer()
 
     showRegions = true
-
-    renderTexture
-    renderTextureSprite
+    showLabels = true
 
     constructor() {
         super()
@@ -70,31 +70,34 @@ export class Canvas extends EventEmitter {
             .decelerate()
 
         this.viewport.clampZoom({minScale:0.07,maxScale:8})
-        this.viewport.fit(true, 11264,12432)
+        this.viewport.fit(true, 14336,12432)
 
-        //{ 11264, 12432 }
-        this.renderTexture = PIXI.RenderTexture.create({width: 11264 * this.SCALE, height:12432 * this.SCALE, scaleMode: PIXI.SCALE_MODES.NEAREST})
-        const texture = PIXI.Texture.from('foxhole_map.webp')
-        texture.baseTexture.scaleMode = PIXI.SCALE_MODES.LINEAR
+        this.layerDrawing.position.set(-14336*0.5,-12432*0.5)
+        //{ 14336, 12432 }
+        Array(5).fill().map((_,x) => {
+            Array(5).fill().map((_,y) => {
+                const renderTexture = PIXI.RenderTexture.create({width: 1024 * 3, height:888 * 3, scaleMode: PIXI.SCALE_MODES.NEAREST})
+                var sprite = new PIXI.Sprite(renderTexture)
+                sprite.renderTexture = renderTexture
+                sprite.position.set(1024 * 3 * x, 888 * 3 * y)
+                sprite.scaleMode = PIXI.SCALE_MODES.NEAREST
+                sprite.eventMode = "static"
+                this.layerDrawing.addChild(sprite)
+            })
+        })
 
-        var map = new PIXI.Sprite(texture)
+        // this.renderTexture = PIXI.RenderTexture.create({width: 14336 * this.SCALE, height:12432 * this.SCALE, scaleMode: PIXI.SCALE_MODES.NEAREST})
 
-        map.anchor.set(0.5)
-        map.position.set(0,0)
-
-        map.eventMode = "static"
-
-        this.renderTextureSprite = new PIXI.Sprite(this.renderTexture)
-        this.renderTextureSprite.scale.set(1/this.SCALE,1/this.SCALE)
-        this.renderTextureSprite.anchor.set(0.5);
-        this.renderTextureSprite.scaleMode = PIXI.SCALE_MODES.NEAREST
+        // this.renderTextureSprite = new PIXI.Sprite(this.renderTexture)
+        // this.renderTextureSprite.scale.set(1/this.SCALE,1/this.SCALE)
+        // this.renderTextureSprite.anchor.set(0.5);
+        // this.renderTextureSprite.scaleMode = PIXI.SCALE_MODES.NEAREST
 
         this.viewport.eventMode = "static";
 
-
-        this.viewport.addChild(map);
+        this.viewport.addChild(this.layerMap);
         this.viewport.addChild(this.layerRegion)
-        this.viewport.addChild(this.renderTextureSprite)
+        this.viewport.addChild(this.layerDrawing)
         this.viewport.addChild(this.layerOverlay)
         this.viewport.addChild(this.layerIcons)
         this.viewport.addChild(this.layerTownIcons)
@@ -110,6 +113,7 @@ export class Canvas extends EventEmitter {
 
         let font = new FontFaceObserver('Jost');
         font.load(null,30000).then(async () => {
+                this.setup_map()
                 await this.setup_warApi();
                 this.onZoom()
                 this.emit("loaded")
@@ -119,6 +123,26 @@ export class Canvas extends EventEmitter {
 
     update_visible() {
         this.layerRegion.alpha = this.showRegions ? 0.8 : 0.0
+        this.layerLabels.alpha = this.showLabels ? 1.0 : 0.0
+        this.onZoom(null)
+    }
+
+
+    setup_map() {
+        Object.keys(regions).forEach(key => {
+            const texture = PIXI.Texture.from(`hexes/Map${key}.png`)
+            texture.baseTexture.scaleMode = PIXI.SCALE_MODES.LINEAR
+            var map = new PIXI.Sprite(texture)
+
+            var center = regions[key].center
+            this.layerMap.addChild(map)
+            map.cullable = false
+            map.scale.set(2);
+            map.anchor.set(0.5)
+            map.position.set(center[0],center[1])
+
+            map.eventMode = "static"
+        })
     }
 
     async setup_warApi() {
@@ -143,13 +167,18 @@ export class Canvas extends EventEmitter {
                         break;
                 }
 
+                if (item.flags == 17) {
+                    icon.tint = "#FF0000"
+                }
+
                 if (WarpApi.VORONOI.includes(item.iconType)) {
-                    this.voronoi.push({x: pos[0] + 11264 * 0.5, y:pos[1] + 12432 * 0.5})
+                    this.voronoi.push({x: pos[0] + 14336 * 0.5, y:pos[1] + 12432 * 0.5})
                     this.town_icons.push(icon)
                 }
 
                 icon.position.set(pos[0], pos[1])
                 icon.anchor.set(0.5)
+                icon.cullable = false
                 this.icons[hexes[i]].push(icon)
             }))
 
@@ -203,7 +232,7 @@ export class Canvas extends EventEmitter {
     }
 
     async generate_voronoi_cells() {
-        var bbox = {xl: 0, xr: 11264, yt: 0, yb: 12432};
+        var bbox = {xl: 0, xr: 14336, yt: 0, yb: 12432};
         var voro = new Voronoi()
         var diagram = voro.compute(this.voronoi,bbox);
 
@@ -221,7 +250,7 @@ export class Canvas extends EventEmitter {
                 return new PIXI.Point(point.x, point.y)
             })
             var polygon = new PIXI.Graphics()
-            polygon.position.set(11264 * -0.5, 12432 * -0.5)
+            polygon.position.set(14336 * -0.5, 12432 * -0.5)
             polygon.lineStyle({width:Math.floor(3), color:0x000000, alpha:1.0})
             polygon.beginFill(0xffffff,1.0)
             polygon.drawPolygon(polygon_points)
@@ -255,6 +284,10 @@ export class Canvas extends EventEmitter {
                             break;
                     }
 
+                    if (item.flags == 17) {
+                        icon.tint = "#FF0000"
+                    }
+
                     if (icon._polygon) {
                         icon._polygon.tint = icon.tint
                     }
@@ -268,8 +301,12 @@ export class Canvas extends EventEmitter {
 
 
     render(graphic) {
-        var renderTexture = this.renderTexture
-        this.app.renderer.render(graphic, { renderTexture, clear:false, skipUpdateTransform: false })
+        this.layerDrawing.children.forEach((c) => {
+            graphic.position = c.position
+            graphic.position.x *= -1
+            graphic.position.y *= -1
+            this.app.renderer.render(graphic, { renderTexture: c.renderTexture, clear:false, skipUpdateTransform: false })
+        })
     }
 
     onZoom(e) {
@@ -277,7 +314,6 @@ export class Canvas extends EventEmitter {
         var regionScale = 1.0
         var iconScale = 1.0
         var zoom = this.viewport.scale.x
-        console.log(zoom)
 
         // LABELS
         this.layerLabels.alpha = smoothstep(0,0.5,zoom)
@@ -313,13 +349,14 @@ export class Canvas extends EventEmitter {
 
         // Overrides
         this.layerRegion.alpha = this.showRegions ? this.layerRegion.alpha : 0.0
+        this.layerLabels.alpha = this.showLabels ? this.layerLabels.alpha : 0.0
 
 
     }
 
     move(e) {
         var last_pos = this.viewport.toWorld(e.globalX,e.globalY);
-        last_pos.x += 11264 * 0.5;
+        last_pos.x += 14336 * 0.5;
         last_pos.y += 12432 * 0.5;
 
         var pos = this.viewport.toWorld(e.globalX,e.globalY);
@@ -335,7 +372,7 @@ export class Canvas extends EventEmitter {
             return;
         }
         var last_pos = this.viewport.toWorld(e.globalX,e.globalY);
-        last_pos.x += 11264 * 0.5;
+        last_pos.x += 14336 * 0.5;
         last_pos.y += 12432 * 0.5;
 
         this.emit("click", last_pos, e.shiftKey)

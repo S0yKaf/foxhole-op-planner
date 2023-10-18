@@ -3,10 +3,10 @@ import * as PIXI from 'pixi.js';
 
 class WarpApiSingleton {
 
-    url = "https://war-service-live.foxholeservices.com/api/worldconquest"
+    url = "https://war-service-dev.foxholeservices.com/api/worldconquest"
 
     icons = {}
-    TOWNS = [8,27,29,28,45,56,57,58]
+    TOWNS = [8,27,29,28,45,56,57,58,70]
     VORONOI = [8,45,56,57,58]
     _activeHexes = []
 
@@ -88,7 +88,7 @@ class WarpApiSingleton {
         34: "icons/MapIconFactory.png",
         35: "icons/MapIconSafehouse.png",
         // 36: "icons/", // REMOVED
-        37: "icons/MapIconRocketSite.png",
+        37: "icons/RocketSiteMapIcon.png",
         38: "icons/MapIconSalvageMine.png",
         39: "icons/MapIconConstructionYard.png",
         40: "icons/MapIconComponentMine.png",
@@ -112,6 +112,11 @@ class WarpApiSingleton {
 
         61: "icons/MapIconCoalField.png",
         62: "icons/MapIconOilWell.png",
+
+        70: 'icons/MapIconRocketTarget.png', // nuke target
+        71: 'icons/MapIconRocketGroundZero.png', // nuked targer (ground zero)
+        72: 'icons/RocketSiteWithRocketMapIcon.png', // nuke site loaded?
+        75: 'icons/MapIconFacilityMineOilRig.png' // offshore platform
 
     }
 }

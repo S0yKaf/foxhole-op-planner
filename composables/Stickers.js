@@ -48,6 +48,18 @@ class Stickers extends PIXI.Container {
 
     }
 
+    toString() {
+        var data = {
+            class: this.class,
+            position: this.position,
+            faction: this.faction,
+            tier: this.tier || null,
+            range: this.range || null
+        }
+
+        return JSON.stringify(data)
+    }
+
     onRightClick(e) {
         console.log("CLICK")
         this.destroy()

@@ -86,13 +86,6 @@ export class Canvas extends EventEmitter {
             })
         })
 
-        // this.renderTexture = PIXI.RenderTexture.create({width: 14336 * this.SCALE, height:12432 * this.SCALE, scaleMode: PIXI.SCALE_MODES.NEAREST})
-
-        // this.renderTextureSprite = new PIXI.Sprite(this.renderTexture)
-        // this.renderTextureSprite.scale.set(1/this.SCALE,1/this.SCALE)
-        // this.renderTextureSprite.anchor.set(0.5);
-        // this.renderTextureSprite.scaleMode = PIXI.SCALE_MODES.NEAREST
-
         this.viewport.eventMode = "static";
 
         this.viewport.addChild(this.layerMap);

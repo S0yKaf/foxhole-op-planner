@@ -50,8 +50,8 @@ class Stickers extends PIXI.Container {
 
     toString() {
         var data = {
-            class: this.class,
-            position: this.position,
+            class: this.constructor.name,
+            position: {x: this.position.x, y: this.position.y},
             faction: this.faction,
             tier: this.tier || null,
             range: this.range || null

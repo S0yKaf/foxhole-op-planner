@@ -13,7 +13,7 @@ export default defineNuxtConfig({
     // baseURL: '/foxhole-op-planner/',
     buildAssetsDir: 'assets',
     head: {
-      script: [{src: 'https://apis.google.com/js/api.js'}]
+      script: [{src: 'https://accounts.google.com/gsi/client'},{src: 'https://apis.google.com/js/api.js'}]
     }
   },
   modules: [

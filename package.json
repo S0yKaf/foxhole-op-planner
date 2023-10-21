@@ -21,6 +21,7 @@
     "@pixi/math-extras": "^7.3.0",
     "fontfaceobserver": "^2.3.0",
     "googleapis": "^126.0.1",
+    "jose": "^4.15.4",
     "nuxt-vue3-google-signin": "^0.0.9",
     "peerjs": "^1.4.7",
     "pinia": "^2.1.6",

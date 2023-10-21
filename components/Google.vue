@@ -1,24 +1,25 @@
 <template>
     <div class="google">
-    <div v-show="!token">
-        Login to save maps
-    <button v-show="!token" :disabled="!isReady" @click="() => login()">Login with Google</button>
-    </div>
-    <button @click="() => setup_drive()">test</button>
+        <div ref="googleLoginBtn" v-if="!user"/>
+    <!-- <button @click="() => setup_drive()">test</button> -->
+    <div v-if="user">
+        Welcome {{user}}! <a href="#logout" @click="logout()"> logout </a>
+        <div class="maps">
+        </div>
 
-    <div class="maps">
-    </div>
+        <div>
+            <input type="text" placeholder="new map" v-model="mapName"/>
+            <button @click="newMap(mapName)"> create </button>
+        </div>
+        <button @click="() => save()">SAVE</button>
 
-    <div>
-        <input type="text" placeholder="new map" v-model="mapName"/>
-        <button @click="newMap(mapName)"> create </button>
     </div>
-
     </div>
 </template>
 
 <script setup>
 
+import { decodeJwt } from 'jose'
 import { useTokenClient, decodeCredential } from "vue3-google-signin";
 import { useGsiScript } from 'vue3-google-signin';
 
@@ -26,6 +27,9 @@ const driveApiEndpoint = 'https://www.googleapis.com/drive/v3/files';
 
 const { scriptLoaded, scriptLoadError } = useGsiScript()
 
+
+const googleLoginBtn = ref(null)
+const user = ref()
 
 const check_token = async () => {
     let token = localStorage.getItem("google-signin")
@@ -47,6 +51,7 @@ const handleOnSuccess = async (response) => {
 const newMap = async (v) => {
     await create_folder(v)
     var res = await get_files_in_app()
+    await createFile()
     console.log(res)
 }
 
@@ -87,6 +92,20 @@ const create_folder = async (name) => {
     console.log(await res.json())
 
 
+}
+
+async function createFile() {
+        gapi.client.drive.files.create({
+        resource: {
+        name: 'My New File.txt', // The name of the file
+        mimeType: 'text/plain',   // The MIME type of the file
+        parents: [app_folder_id]
+        },
+        media: {
+        mimeType: 'text/plain',
+        body: 'This is the content of the file.' // The content of the file
+        }
+    })
 }
 
 const create_file = async (name) => {
@@ -156,26 +175,80 @@ const setup_drive = async () => {
 
 }
 
-onMounted(async () => {
-    gapi.load('client', () => {
-        gapi.client.init( {
-        clientId: '797686098501-cpjla11oe33p2tc6keuro8t313uslnfv.apps.googleusercontent.com',
-        discoveryDocs: ['https://people.googleapis.com/$discovery/rest'],
-        scope: 'profile'
-        }).then(function() {
-            // 3. Initialize and make the API request.
-            return gapi.client.people.people.get({
-                'resourceName': 'people/me',
-                'requestMask.includeField': 'person.names'
-            });
-        }).then(function(response) {
-            console.log(response.result);
-        }, function(reason) {
-            console.log('Error: ' + reason.result.error.message);
+const save = () => {
+    Serializer.save_current()
+}
 
-        })
+onMounted(async () => {
+    google.accounts.id.initialize({
+        client_id: "797686098501-cpjla11oe33p2tc6keuro8t313uslnfv.apps.googleusercontent.com",
+        callback: handleCredentialResponse,
+        auto_select: true
+      })
+    google.accounts.id.prompt();
+    google.accounts.id.renderButton(
+    googleLoginBtn.value, {
+        text: 'signin_with', // or 'signup_with' | 'continue_with' | 'signin'
+        size: 'large', // or 'small' | 'medium'
+        //   width: '366', // max width 400
+        theme: 'outline', // or 'filled_black' |  'filled_blue'
+        logo_alignment: 'left' // or 'center'
     })
+
 })
+
+const logout = async () => {
+    const responsePayload = decodeJwt(token);
+    google.accounts.id.revoke(responsePayload.email, done => {
+        user.value = null
+        token = null
+
+    })
+}
+
+async function handleCredentialResponse(response) {
+    const responsePayload = decodeJwt(response.credential);
+    user.value = responsePayload.given_name
+    localStorage.setItem("google-signin", response.credential)
+    token = response.credential
+    // Put your backend code in here
+}
+
+/**
+ *  Initializes the API client library and sets up sign-in state
+ *  listeners.
+ */
+function initClient() {
+    gapi.client.init({
+    clientId: '797686098501-cpjla11oe33p2tc6keuro8t313uslnfv.apps.googleusercontent.com',
+    discoveryDocs: ['https://people.googleapis.com/$discovery/rest'],
+    scope: 'https://www.googleapis.com/auth/drive.file'
+}).then(function () {
+// Listen for sign-in state changes.
+    gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
+
+// Handle the initial sign-in state.
+    updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
+        authorizeButton.onclick = handleAuthClick;
+        signoutButton.onclick = handleSignoutClick;
+    });
+}
+
+/**
+ *  Called when the signed in status changes, to update the UI
+ *  appropriately. After a sign-in, the API is called.
+ */
+function updateSigninStatus(isSignedIn) {
+    if (isSignedIn) {
+        authorizeButton.style.display = 'none';
+        signoutButton.style.display = 'block';
+        printDocTitle();
+    } else {
+        authorizeButton.style.display = 'block';
+        signoutButton.style.display = 'none';
+    }
+}
+
 
 onBeforeUnmount(() => {
     return

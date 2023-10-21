@@ -1,4 +1,4 @@
-export var canvas = new Canvas()
+// export var canvas = new Canvas()
 export var connection
 
 export function set_connection(conn) {

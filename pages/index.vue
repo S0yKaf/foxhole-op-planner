@@ -1,6 +1,5 @@
 <template>
   <Tools/>
-  <!-- <Google/> -->
   <TopBar/>
   <Canvas/>
 </template>

@@ -48,7 +48,7 @@ class Stickers extends PIXI.Container {
 
     }
 
-    toString() {
+    getData() {
         var data = {
             class: this.constructor.name,
             position: {x: this.position.x, y: this.position.y},
@@ -57,7 +57,7 @@ class Stickers extends PIXI.Container {
             range: this.range || null
         }
 
-        return JSON.stringify(data)
+        return data
     }
 
     onRightClick(e) {

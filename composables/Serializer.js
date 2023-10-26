@@ -7,9 +7,15 @@ class SerializerSingleton {
     }
 
     save_current() {
+        var stateFile = {}
+
+        stateFile.stickers = []
+
         canvas.layerStickers.children.forEach((c) => {
-            console.log(c.toString())
+            stateFile.stickers.push(c.getData())
         })
+
+        return stateFile
     }
 
 }

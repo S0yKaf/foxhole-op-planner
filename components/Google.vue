@@ -8,6 +8,11 @@
         </div>
 
         <div>
+            <div>
+                Maps:
+                <!-- eslint-disable-next-line no-use-before-define -->
+                <li v-for="map in maps" :key=map.name> <button @click="changeMap(map)"> {{map.name}} </button> </li>
+            </div>
             <input type="text" placeholder="new map" v-model="mapName"/>
             <button @click="newMap(mapName)"> create </button>
         </div>
@@ -20,16 +25,11 @@
 <script setup>
 
 import { decodeJwt } from 'jose'
-import { useTokenClient, decodeCredential } from "vue3-google-signin";
-import { useGsiScript } from 'vue3-google-signin';
-
-const driveApiEndpoint = 'https://www.googleapis.com/drive/v3/files';
-
-const { scriptLoaded, scriptLoadError } = useGsiScript()
 
 
 const googleLoginBtn = ref(null)
 const user = ref()
+const maps = ref()
 
 const check_token = async () => {
     let token = localStorage.getItem("google-signin")
@@ -37,146 +37,42 @@ const check_token = async () => {
 }
 
 var token = null
+var access_token = null
 var app_folder_id
+var selected_map = null
 
-const handleOnSuccess = async (response) => {
-    console.log("Access Token: ", response.access_token);
-    console.log(response)
-    localStorage.setItem("google-signin", response.access_token)
-    token = response.access_token
-    setup_drive()
 
-};
+const changeMap = async (map) => {
+    selected_map = map.id
+}
 
 const newMap = async (v) => {
-    await create_folder(v)
-    var res = await get_files_in_app()
-    await createFile()
-    console.log(res)
+    var root = await create_folder(v)
+    var mapTiles = await create_folder('mapTiles',root)
+    maps.value = await getMaps()
 }
 
-const create_app_folder = async (name) => {
+const create_folder = async (name,parent=null) => {
 
     const folderMetadata = {
         name: `${name}`,
         mimeType: 'application/vnd.google-apps.folder',
+        parents: [parent || app_folder_id]
     };
 
-    const headers = new Headers({
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json',
-    });
-
-    const requestBody = JSON.stringify(folderMetadata);
-    var res = await fetch(driveApiEndpoint, {method: 'POST', headers, body: requestBody})
-    console.log(await res.json())
-
+    var response = await gapi.client.drive.files.create(folderMetadata)
+    return response.result.id
 
 }
 
-const create_folder = async (name) => {
+const save = async () => {
+    var state = Serializer.save_current()
 
-    const folderMetadata = {
-        name: `${name}`,
-        mimeType: 'application/vnd.google-apps.folder',
-        parents: [app_folder_id]
-    };
-
-    const headers = new Headers({
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json',
-    });
-
-    const requestBody = JSON.stringify(folderMetadata);
-    var res = await fetch(driveApiEndpoint, {method: 'POST', headers, body: requestBody})
-    console.log(await res.json())
-
-
-}
-
-async function createFile() {
-        gapi.client.drive.files.create({
-        resource: {
-        name: 'My New File.txt', // The name of the file
-        mimeType: 'text/plain',   // The MIME type of the file
-        parents: [app_folder_id]
-        },
-        media: {
-        mimeType: 'text/plain',
-        body: 'This is the content of the file.' // The content of the file
-        }
-    })
-}
-
-const create_file = async (name) => {
-
-    const folderMetadata = {
-        name: `${name}`,
-        mimeType: 'application/vnd.google-apps.folder',
-    };
-
-    const headers = new Headers({
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json',
-    });
-
-    const requestBody = JSON.stringify(folderMetadata);
-    var res = await fetch(driveApiEndpoint, {method: 'POST', headers, body: requestBody})
-    console.log(await res.json())
-
-
-}
-
-const get_files = async () => {
-    const headers = new Headers({
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json',
-    });
-
-    var res = await fetch(driveApiEndpoint, {method: 'GET', headers})
-    var files = await res.json()
-    return files
-
-}
-
-const get_files_in_app = async () => {
-    const headers = new Headers({
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json',
-    });
-
-    var query = `?q=${app_folder_id} in parents`
-    var res = await fetch(driveApiEndpoint + query, {method: 'GET', headers})
-    var files = await res.json()
-    return files
-}
-
-const handleOnError = (errorResponse) => {
-  console.log("Error: ", errorResponse);
-};
-
-const { isReady, login } = useTokenClient({
-  onSuccess: handleOnSuccess,
-  onError: handleOnError,
-  scope: "https://www.googleapis.com/auth/drive.file",
-});
-
-const setup_drive = async () => {
-    console.log("YO")
-    var res = await get_files()
-    var filenames = res.files.map(f => f.name)
-
-    if (!filenames.includes("foxhole_map_data")) {
-        await create_app_folder("foxhole_map_data")
+    for await (const img of canvas.saveDrawings()) {
+        writeFile(selected_map, img[0] + '.png', img[1],'image/png')
     }
 
-    app_folder_id = res.files.find(f => f.name == "foxhole_map_data").id
-    console.log(app_folder_id)
-
-}
-
-const save = () => {
-    Serializer.save_current()
+    writeFile(selected_map,"mapData.json", state)
 }
 
 onMounted(async () => {
@@ -185,7 +81,7 @@ onMounted(async () => {
         callback: handleCredentialResponse,
         auto_select: true
       })
-    google.accounts.id.prompt();
+    google.accounts.id.prompt()
     google.accounts.id.renderButton(
     googleLoginBtn.value, {
         text: 'signin_with', // or 'signup_with' | 'continue_with' | 'signin'
@@ -211,44 +107,87 @@ async function handleCredentialResponse(response) {
     user.value = responsePayload.given_name
     localStorage.setItem("google-signin", response.credential)
     token = response.credential
+
+    if (localStorage.getItem("access_token")) {
+        handleAuthResponse(localStorage.getItem("access_token"))
+        return
+    }
+
+    const client = google.accounts.oauth2.initTokenClient({
+        client_id: "797686098501-cpjla11oe33p2tc6keuro8t313uslnfv.apps.googleusercontent.com",
+        scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.install',
+        callback: handleAuthResponse,
+        error_callback: (res) => {console.log(res)},
+        prompt: '',
+        login_hint: responsePayload.sub
+    })
+
+    client.requestAccessToken()
     // Put your backend code in here
 }
 
-/**
- *  Initializes the API client library and sets up sign-in state
- *  listeners.
- */
-function initClient() {
-    gapi.client.init({
-    clientId: '797686098501-cpjla11oe33p2tc6keuro8t313uslnfv.apps.googleusercontent.com',
-    discoveryDocs: ['https://people.googleapis.com/$discovery/rest'],
-    scope: 'https://www.googleapis.com/auth/drive.file'
-}).then(function () {
-// Listen for sign-in state changes.
-    gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
+async function handleAuthResponse(token) {
+    access_token = token
+    localStorage.setItem("access_token", token)
 
-// Handle the initial sign-in state.
-    updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
-        authorizeButton.onclick = handleAuthClick;
-        signoutButton.onclick = handleSignoutClick;
-    });
+    await gapi.load('client', async ()=> {
+        await gapi.client.init({})
+        .then(async ()=> {
+            await gapi.client.load('drive', 'v3');
+            await gapi.client.setToken(access_token)
+        }).then((res) => {
+            setupDrive()
+        })
+    })
 }
 
-/**
- *  Called when the signed in status changes, to update the UI
- *  appropriately. After a sign-in, the API is called.
- */
-function updateSigninStatus(isSignedIn) {
-    if (isSignedIn) {
-        authorizeButton.style.display = 'none';
-        signoutButton.style.display = 'block';
-        printDocTitle();
-    } else {
-        authorizeButton.style.display = 'block';
-        signoutButton.style.display = 'none';
+async function getFiles() {
+    var res = await gapi.client.drive.files.list()
+    var files = res.result.files
+    return files
+}
+
+async function getMaps() {
+    var response = await gapi.client.drive.files.list({
+        q: `mimeType=\'application/vnd.google-apps.folder\' and \'${app_folder_id}\' in parents`
+    })
+    return response.result.files
+}
+
+async function setupDrive() {
+    var files = await getFiles()
+    var root = files.length > 0 ? files.find(f => f.name == "foxhole_op_planner_data").id : null
+    if (!root) {
+        var res = await gapi.client.drive.files.create({
+            name: "foxhole_op_planner_data",
+            mimeType: 'application/vnd.google-apps.folder',
+        })
+        root = res.result.id
     }
+    localStorage.setItem("root_folder", root)
+    app_folder_id = root
+    maps.value = await getMaps()
 }
 
+async function writeFile(mapId, name, data, contentType='application/json') {
+
+    const metadata = {
+        name: name,
+        parents: [mapId],
+    };
+
+    const form = new FormData()
+
+    const processedData = contentType == 'application/json' ? JSON.stringify(data) : data
+    form.append('metadata', new Blob([JSON.stringify(metadata)], {type: 'application/json'}));
+    form.append('file', processedData);
+
+    var res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${access_token.access_token}` },
+        body: form
+    })
+}
 
 onBeforeUnmount(() => {
     return

@@ -63,7 +63,6 @@ function hexCenterToGridPosition(q, r) {
 
 
 export function getMapItemPosition(mapId, x, y) {
-    console.log(mapId)
     var center = regions[mapId].center
     var h = hexSize * SQRT3
     var w = hexSize * 2

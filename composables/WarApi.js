@@ -3,7 +3,7 @@ import * as PIXI from 'pixi.js';
 
 class WarpApiSingleton {
 
-    url = "https://war-service-dev.foxholeservices.com/api/worldconquest"
+    url = "https://war-service-live.foxholeservices.com/api/worldconquest"
 
     icons = {}
     TOWNS = [8,27,29,28,45,56,57,58,70]

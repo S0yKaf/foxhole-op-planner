@@ -80,6 +80,7 @@ export class Canvas extends EventEmitter {
                 var sprite = new PIXI.Sprite(renderTexture)
                 sprite.renderTexture = renderTexture
                 sprite.position.set(1024 * 3 * x, 888 * 3 * y)
+                sprite.layerPosition = `${x}-${y}`
                 sprite.scaleMode = PIXI.SCALE_MODES.NEAREST
                 sprite.eventMode = "static"
                 this.layerDrawing.addChild(sprite)
@@ -387,4 +388,20 @@ export class Canvas extends EventEmitter {
         this.viewport.resize(width, height);
 
     }
+
+     async * saveDrawings() {
+        var size = this.layerDrawing.children.length
+        for (let i = 0; i < size; i++) {
+            var sprite = this.layerDrawing.children[i]
+            var blob = await new Promise(resolve => {
+                canvas.app.renderer.extract.canvas(sprite.renderTexture).toBlob((blob) => {
+                    resolve(blob)
+                })
+            })
+
+            console.log([sprite.layerPosition, blob])
+            yield [sprite.layerPosition, blob]
+        }
+    }
+
 }

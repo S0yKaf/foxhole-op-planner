@@ -1,6 +1,9 @@
 <template>
     <div class="google">
+    <div v-if="!user">
+        Sign in to google to save your map
         <div ref="googleLoginBtn" v-if="!user"/>
+    </div>
     <!-- <button @click="() => setup_drive()">test</button> -->
     <div v-if="user">
         Welcome {{user}}! <a href="#logout" @click="logout()"> logout </a>
@@ -8,15 +11,16 @@
         </div>
 
         <div>
-            <div>
-                Maps:
+            <!-- <div> -->
+                <!-- Maps: -->
                 <!-- eslint-disable-next-line no-use-before-define -->
-                <li v-for="map in maps" :key=map.name> <button @click="changeMap(map)"> {{map.name}} </button> </li>
+                <!-- <li v-for="map in maps" :key=map.name> <button @click="changeMap(map)"> {{map.name}} </button> </li>
             </div>
             <input type="text" placeholder="new map" v-model="mapName"/>
-            <button @click="newMap(mapName)"> create </button>
+            <button @click="newMap(mapName)"> create </button> -->
         </div>
-        <button @click="() => save()">SAVE</button>
+        <br />
+        <button @click="() => save()">SAVE MAP</button>
 
     </div>
     </div>
@@ -31,15 +35,14 @@ const googleLoginBtn = ref(null)
 const user = ref()
 const maps = ref()
 
-const check_token = async () => {
-    let token = localStorage.getItem("google-signin")
-    return token
-}
+var userSub = null
 
 var token = null
 var access_token = null
 var app_folder_id
 var selected_map = null
+
+var tokenClient = null
 
 
 const changeMap = async (map) => {
@@ -66,13 +69,38 @@ const create_folder = async (name,parent=null) => {
 }
 
 const save = async () => {
+    var maps = await getMaps()
+
+    if (maps.length <= 0) {
+        await newMap('default')
+        maps = await getMaps()
+    }
+
+    selected_map = maps[0].id
+    var files = await getMapFiles(maps[0])
+    var tilesFolder = files.find(f => f.name == "mapTiles")
+    var tiles = await getMapFiles(tilesFolder)
+    console.log(tiles)
+    console.log(files)
+
+
     var state = Serializer.save_current()
 
     for await (const img of canvas.saveDrawings()) {
-        writeFile(selected_map, img[0] + '.png', img[1],'image/png')
+        var tile = tiles.find(f => f.name == `${img[0]}.png`)
+        if (tile) {
+            // TODO
+        } else {
+            writeFile(tilesFolder.id, img[0] + '.png', img[1],'image/png')
+        }
     }
 
-    writeFile(selected_map,"mapData.json", state)
+    var mapData = files.find(f => f.name == "mapData.json")
+    if (mapData) {
+        // TODO
+    } else {
+        writeFile(selected_map,"mapData.json", state)
+    }
 }
 
 onMounted(async () => {
@@ -104,45 +132,68 @@ const logout = async () => {
 
 async function handleCredentialResponse(response) {
     const responsePayload = decodeJwt(response.credential);
+    userSub = responsePayload.sub
     user.value = responsePayload.given_name
-    localStorage.setItem("google-signin", response.credential)
     token = response.credential
 
+
+    await setupGapi()
+    await setupTokenClient(responsePayload)
+
     if (localStorage.getItem("access_token")) {
-        handleAuthResponse(localStorage.getItem("access_token"))
-        return
+        access_token = JSON.parse(localStorage.getItem("access_token"))
+        gapi.client.setToken(access_token)
+    } else {
+        tokenClient.requestAccessToken()
     }
 
-    const client = google.accounts.oauth2.initTokenClient({
+    await setupDrive()
+
+}
+
+async function setupTokenClient() {
+    tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: "797686098501-cpjla11oe33p2tc6keuro8t313uslnfv.apps.googleusercontent.com",
         scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.install',
         callback: handleAuthResponse,
-        error_callback: (res) => {console.log(res)},
-        prompt: '',
-        login_hint: responsePayload.sub
+        error_callback: (res) => {console.log("YOOO",res)},
+        prompt: 'none',
+        login_hint: userSub
     })
-
-    client.requestAccessToken()
-    // Put your backend code in here
 }
 
-async function handleAuthResponse(token) {
-    access_token = token
-    localStorage.setItem("access_token", token)
+async function setupGapi() {
+        // await gapi.client.setToken(access_token)
 
-    await gapi.load('client', async ()=> {
+        await gapi.load('client', async ()=> {
         await gapi.client.init({})
         .then(async ()=> {
             await gapi.client.load('drive', 'v3');
-            await gapi.client.setToken(access_token)
-        }).then((res) => {
-            setupDrive()
         })
     })
 }
 
+async function handleAuthResponse(token) {
+    access_token = token
+    localStorage.setItem("access_token", JSON.stringify(token))
+    await gapi.client.setToken(access_token)
+
+}
+
+function refreshToken() {
+    tokenClient.requestAccessToken()
+}
+
 async function getFiles() {
-    var res = await gapi.client.drive.files.list()
+    var res
+    try {
+        res = await gapi.client.drive.files.list()
+    } catch {
+        tokenClient.requestAccessToken()
+        getFiles()
+    }
+    console.log(res)
+    console.log("YO")
     var files = res.result.files
     return files
 }
@@ -154,15 +205,29 @@ async function getMaps() {
     return response.result.files
 }
 
+async function getMapFiles(map) {
+    var response = await gapi.client.drive.files.list({
+        q: `\'${map.id}\' in parents`
+    })
+    return response.result.files
+}
+
 async function setupDrive() {
     var files = await getFiles()
-    var root = files.length > 0 ? files.find(f => f.name == "foxhole_op_planner_data").id : null
+
+    var root = null
+    if (files.length > 0) {
+        root = files.find(f => f.name == "foxhole_op_planner_data")
+        root = root ? root.id : null
+    }
+
     if (!root) {
         var res = await gapi.client.drive.files.create({
             name: "foxhole_op_planner_data",
             mimeType: 'application/vnd.google-apps.folder',
         })
         root = res.result.id
+
     }
     localStorage.setItem("root_folder", root)
     app_folder_id = root

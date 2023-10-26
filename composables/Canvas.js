@@ -29,6 +29,8 @@ export class Canvas extends EventEmitter {
 
     mapObjects = []
 
+    ready = false
+
     app = new PIXI.Application({
         antialias: true,
         background: this.appConfig.theme.canvas_background_color,
@@ -223,6 +225,7 @@ export class Canvas extends EventEmitter {
         }
         await Promise.all(this.labels.map(async (i) => {this.layerLabels.addChild(i)}))
         await Promise.all(this.hexNames.map(async (i) => {this.layerHexName.addChild(i)}))
+        this.ready = true
     }
 
     async generate_voronoi_cells() {
@@ -258,7 +261,9 @@ export class Canvas extends EventEmitter {
 
     timer = ms => new Promise(res => setTimeout(res, ms))
     async refreshCaptures() {
-
+        if (!this.ready) {
+            return
+        }
 
         var hexes = await WarpApi.getActiveHexes()
         for (const i in hexes) {
@@ -266,6 +271,19 @@ export class Canvas extends EventEmitter {
             .then((items) => {
                 items.mapItems.forEach((item) => {
                    var icon = this.icons[hexes[i]].find((i) => i._id == `${item.x}:${item.y}`)
+                    var newIcon = false
+                   if (!icon) {
+                    var pos = getMapItemPosition(hexes[i], item.x, item.y)
+                    newIcon = true
+                    console.log("NEW ICON")
+                    console.log(item)
+                    console.log(hexes[i])
+                    icon = new PIXI.Sprite(WarpApi.icons[item.iconType])
+                    icon.name = item.iconType
+                    icon._id = `${item.x}:${item.y}`
+                    icon.position.set(pos[0], pos[1])
+                    icon.anchor.set(0.5)
+                   }
 
                     icon.tint = 0xffffff
                     switch (item.teamId) {
@@ -284,6 +302,12 @@ export class Canvas extends EventEmitter {
 
                     if (icon._polygon) {
                         icon._polygon.tint = icon.tint
+                    }
+
+                    if (newIcon) {
+                        console.log(icon)
+                        this.layerTownIcons.addChild(icon)
+                        this.icons[hexes[i]].push(icon)
                     }
                 })
 
@@ -398,8 +422,6 @@ export class Canvas extends EventEmitter {
                     resolve(blob)
                 })
             })
-
-            console.log([sprite.layerPosition, blob])
             yield [sprite.layerPosition, blob]
         }
     }

@@ -6,9 +6,11 @@ class WarpApiSingleton {
     url = "https://war-service-live.foxholeservices.com/api/worldconquest"
 
     icons = {}
-    TOWNS = [8,27,29,28,45,56,57,58,70]
-    VORONOI = [8,45,56,57,58]
+    TOWNS = [8,48,27,29,28,45,56,57,58,70]
+    VORONOI = [45,56,57,58]
     _activeHexes = []
+
+    etag = {}
 
     constructor() {
 
@@ -45,10 +47,19 @@ class WarpApiSingleton {
 
     async dynamic(map) {
 
+        if (!this.etag[map]) {
+            this.etag[map] = -1
+        }
+
         var endpoint = `${this.url}/maps/${map}/dynamic/public`
 
         var res = await fetch(endpoint)
         var dynamic = await res.json()
+
+        if (this.etag[map] == dynamic.version) {
+            return { mapItems: []}
+        }
+        this.etag[map] = dynamic.version
 
         return dynamic
     }
@@ -95,6 +106,10 @@ class WarpApiSingleton {
         41: "icons/MapIconOilWell.png", // REMOVED
 
         45: "icons/MapIconRelicBase.png",
+
+        48: "icons/bunkerT1.png",
+        49: "icons/bunkerT2.png",
+        50: "icons/bunkerT3.png",
         // 46: "icons/", // Deprecated in v0.52 until further notice (use Relic Base 1)
         // 47: "icons/", // Deprecated in v0.52 until further notice (use Relic Base 1)
 

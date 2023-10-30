@@ -20,7 +20,8 @@
             <button @click="newMap(mapName)"> create </button> -->
         </div>
         <br />
-        <button @click="() => save()">SAVE MAP</button>
+        <button v-if="!saving" @click="() => save()">SAVE MAP</button>
+        <span v-if="saving"> SAVING... </span>
 
     </div>
     </div>
@@ -34,6 +35,7 @@ import { decodeJwt } from 'jose'
 const googleLoginBtn = ref(null)
 const user = ref()
 const maps = ref()
+const saving = ref()
 
 var userSub = null
 
@@ -43,6 +45,8 @@ var app_folder_id
 var selected_map = null
 
 var tokenClient = null
+
+var callback = null
 
 
 const changeMap = async (map) => {
@@ -69,6 +73,8 @@ const create_folder = async (name,parent=null) => {
 }
 
 const save = async () => {
+
+    saving.value = true
     var maps = await getMaps()
 
     if (maps.length <= 0) {
@@ -80,8 +86,6 @@ const save = async () => {
     var files = await getMapFiles(maps[0])
     var tilesFolder = files.find(f => f.name == "mapTiles")
     var tiles = await getMapFiles(tilesFolder)
-    console.log(tiles)
-    console.log(files)
 
 
     var state = Serializer.save_current()
@@ -89,7 +93,7 @@ const save = async () => {
     for await (const img of canvas.saveDrawings()) {
         var tile = tiles.find(f => f.name == `${img[0]}.png`)
         if (tile) {
-            // TODO
+            updateFile(tile.id, img[1])
         } else {
             writeFile(tilesFolder.id, img[0] + '.png', img[1],'image/png')
         }
@@ -97,10 +101,36 @@ const save = async () => {
 
     var mapData = files.find(f => f.name == "mapData.json")
     if (mapData) {
-        // TODO
+        updateFile(mapData.id, JSON.stringify(state))
     } else {
         writeFile(selected_map,"mapData.json", state)
     }
+    saving.value = false
+}
+
+const load = async () => {
+    var maps = await getMaps()
+
+    if (!maps) {
+        return
+    }
+
+    selected_map = maps[0].id
+    var files = await getMapFiles(maps[0])
+    var tilesFolder = files.find(f => f.name == "mapTiles")
+    var tiles = await getMapFiles(tilesFolder)
+
+    if (!tilesFolder || !tiles) {
+        return
+    }
+
+    tiles.forEach(async (t) => {
+        var file = await getFile(t.id)
+        var url = URL.createObjectURL(file)
+        console.log(url)
+    })
+
+
 }
 
 onMounted(async () => {
@@ -136,8 +166,9 @@ async function handleCredentialResponse(response) {
     user.value = responsePayload.given_name
     token = response.credential
 
-
+    console.log("SETTING UP GAPI")
     await setupGapi()
+    console.log("GAPI SETUP")
     await setupTokenClient(responsePayload)
 
     if (localStorage.getItem("access_token")) {
@@ -148,6 +179,7 @@ async function handleCredentialResponse(response) {
     }
 
     await setupDrive()
+    await load()
 
 }
 
@@ -165,18 +197,22 @@ async function setupTokenClient() {
 async function setupGapi() {
         // await gapi.client.setToken(access_token)
 
-        await gapi.load('client', async ()=> {
-        await gapi.client.init({})
-        .then(async ()=> {
-            await gapi.client.load('drive', 'v3');
+        await new Promise((res) => gapi.load('client', () => res()) )
+        await gapi.client.init({}).then(async () => {
+            await gapi.client.load('drive', 'v3')
         })
-    })
+
 }
 
 async function handleAuthResponse(token) {
     access_token = token
     localStorage.setItem("access_token", JSON.stringify(token))
     await gapi.client.setToken(access_token)
+
+    if (callback) {
+        callback()
+        callback = null
+    }
 
 }
 
@@ -190,10 +226,9 @@ async function getFiles() {
         res = await gapi.client.drive.files.list()
     } catch {
         tokenClient.requestAccessToken()
-        getFiles()
+        callback = getFiles
+        return
     }
-    console.log(res)
-    console.log("YO")
     var files = res.result.files
     return files
 }
@@ -252,6 +287,28 @@ async function writeFile(mapId, name, data, contentType='application/json') {
         headers: { 'Authorization': `Bearer ${access_token.access_token}` },
         body: form
     })
+}
+
+async function updateFile(id, data) {
+
+    const form = new FormData()
+
+    form.append('file', data);
+
+    var res = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${id}?uploadType=media`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${access_token.access_token}` },
+        body: data
+    })
+}
+
+async function getFile(id) {
+    var res = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${access_token.access_token}` },
+    })
+    .then(response => response.blob())
+    return res
 }
 
 onBeforeUnmount(() => {

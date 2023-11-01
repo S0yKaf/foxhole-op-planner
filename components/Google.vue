@@ -20,6 +20,7 @@
             <button @click="newMap(mapName)"> create </button> -->
         </div>
         <br />
+        <span v-if="loading"> Loading Map Data... </span>
         <button v-if="!saving" @click="() => save()">SAVE MAP</button>
         <span v-if="saving"> SAVING... </span>
 
@@ -30,12 +31,14 @@
 <script setup>
 
 import { decodeJwt } from 'jose'
+import * as PIXI from 'pixi.js';
 
 
 const googleLoginBtn = ref(null)
 const user = ref()
 const maps = ref()
 const saving = ref()
+const loading = ref()
 
 var userSub = null
 
@@ -110,6 +113,7 @@ const save = async () => {
 
 const load = async () => {
     var maps = await getMaps()
+    loading.value = true
 
     if (!maps) {
         return
@@ -124,12 +128,26 @@ const load = async () => {
         return
     }
 
-    tiles.forEach(async (t) => {
-        var file = await getFile(t.id)
-        var url = URL.createObjectURL(file)
-        console.log(url)
+    var promises = []
+
+
+    tiles.forEach((t) => {
+        var p = new Promise(async (res) => {
+            var name = t.name.split(".")[0]
+            var file = await getFile(t.id)
+            var url = URL.createObjectURL(file)
+            const sprite = PIXI.Sprite.from(url)
+            var tex = canvas.layerDrawing.children.find((c) => c.layerPosition == name)
+            sprite.texture.baseTexture.on("loaded",() => {
+                canvas.app.renderer.render(sprite, { 'renderTexture': tex.renderTexture, clear:false, skipUpdateTransform: false })
+                res()
+            })
+        })
+        promises.push(p)
     })
 
+    await Promise.all(promises)
+    loading.value = false
 
 }
 
@@ -225,7 +243,9 @@ async function getFiles() {
     try {
         res = await gapi.client.drive.files.list()
     } catch {
-        tokenClient.requestAccessToken()
+        if (!callback) {
+            tokenClient.requestAccessToken()
+        }
         callback = getFiles
         return
     }
@@ -249,6 +269,11 @@ async function getMapFiles(map) {
 
 async function setupDrive() {
     var files = await getFiles()
+
+    if (!files) {
+        await setupDrive()
+        return
+    }
 
     var root = null
     if (files.length > 0) {

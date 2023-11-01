@@ -133,7 +133,7 @@ export class Canvas extends EventEmitter {
             var center = regions[key].center
             this.layerMap.addChild(map)
             map.cullable = false
-            map.scale.set(2);
+            map.scale.set(1);
             map.anchor.set(0.5)
             map.position.set(center[0],center[1])
 

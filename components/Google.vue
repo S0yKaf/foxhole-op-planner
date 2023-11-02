@@ -32,6 +32,7 @@
 
 import { decodeJwt } from 'jose'
 import * as PIXI from 'pixi.js';
+import { EventEmitter } from "eventemitter3";
 
 
 const googleLoginBtn = ref(null)
@@ -50,6 +51,7 @@ var selected_map = null
 var tokenClient = null
 
 var callback = null
+var events = new EventEmitter()
 
 
 const changeMap = async (map) => {
@@ -58,7 +60,7 @@ const changeMap = async (map) => {
 
 const newMap = async (v) => {
     var root = await create_folder(v)
-    var mapTiles = await create_folder('mapTiles',root)
+    await create_folder('mapTiles',root)
     maps.value = await getMaps()
 }
 
@@ -178,6 +180,13 @@ const logout = async () => {
     })
 }
 
+async function getAccessToken() {
+
+    tokenClient.requestAccessToken()
+    await new Promise((res) => events.once("authenticated", () => res() ))
+    return true
+}
+
 async function handleCredentialResponse(response) {
     const responsePayload = decodeJwt(response.credential);
     userSub = responsePayload.sub
@@ -193,7 +202,7 @@ async function handleCredentialResponse(response) {
         access_token = JSON.parse(localStorage.getItem("access_token"))
         gapi.client.setToken(access_token)
     } else {
-        tokenClient.requestAccessToken()
+        await getAccessToken()
     }
 
     await setupDrive()
@@ -226,16 +235,7 @@ async function handleAuthResponse(token) {
     access_token = token
     localStorage.setItem("access_token", JSON.stringify(token))
     await gapi.client.setToken(access_token)
-
-    if (callback) {
-        callback()
-        callback = null
-    }
-
-}
-
-function refreshToken() {
-    tokenClient.requestAccessToken()
+    events.emit("authenticated")
 }
 
 async function getFiles() {
@@ -243,11 +243,7 @@ async function getFiles() {
     try {
         res = await gapi.client.drive.files.list()
     } catch {
-        if (!callback) {
-            tokenClient.requestAccessToken()
-        }
-        callback = getFiles
-        return
+        await getAccessToken()
     }
     var files = res.result.files
     return files
@@ -269,11 +265,6 @@ async function getMapFiles(map) {
 
 async function setupDrive() {
     var files = await getFiles()
-
-    if (!files) {
-        await setupDrive()
-        return
-    }
 
     var root = null
     if (files.length > 0) {

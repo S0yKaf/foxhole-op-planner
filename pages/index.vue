@@ -8,6 +8,16 @@
 
 <script setup>
 
+onMounted(() => {
+
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-1L3QFNH9FS');
+})
+
+
 </script>
 
 <style>

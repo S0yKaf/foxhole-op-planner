@@ -3,6 +3,7 @@
   <!-- <Google/> -->
   <TopBar/>
   <Canvas/>
+  <Footer/>
 </template>
 
 <script setup>

@@ -187,6 +187,13 @@ async function getAccessToken() {
     return true
 }
 
+async function handleAuthResponse(token) {
+    access_token = token
+    localStorage.setItem("access_token", JSON.stringify(token))
+    await gapi.client.setToken(access_token)
+    events.emit("authenticated")
+}
+
 async function handleCredentialResponse(response) {
     const responsePayload = decodeJwt(response.credential);
     userSub = responsePayload.sub
@@ -229,13 +236,6 @@ async function setupGapi() {
             await gapi.client.load('drive', 'v3')
         })
 
-}
-
-async function handleAuthResponse(token) {
-    access_token = token
-    localStorage.setItem("access_token", JSON.stringify(token))
-    await gapi.client.setToken(access_token)
-    events.emit("authenticated")
 }
 
 async function getFiles() {
